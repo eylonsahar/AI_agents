@@ -2,6 +2,7 @@ import os
 import json
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+import re
 import pandas as pd
 from config import MAX_LISTINGS_PER_VEHICLE
 
@@ -60,6 +61,26 @@ def select_top_cars(cars: List[Dict[str, Any]], n: int = MAX_LISTINGS_PER_VEHICL
     return top_n
 
 
+def _parse_years_range(years_value: Any) -> Optional[tuple[int, int]]:
+    if years_value is None:
+        return None
+
+    text = str(years_value).strip()
+    if not text:
+        return None
+
+    text = text.replace("–", "-").replace("—", "-")
+    matches = re.findall(r"\b(19\d{2}|20\d{2})\b", text)
+    if not matches:
+        return None
+
+    years = [int(y) for y in matches]
+    if len(years) == 1:
+        return years[0], years[0]
+
+    return min(years), max(years)
+
+
 def retrieve_listings_from_csv(
     vehicles_result: Dict[str, Any], listings_csv_path: Optional[str] = None, top_n: int = MAX_LISTINGS_PER_VEHICLE
 ) -> Dict[str, Any]:
@@ -106,6 +127,7 @@ def retrieve_listings_from_csv(
     for vehicle in vehicles:
         make = str(vehicle.get("make", "")).strip().lower()
         model = str(vehicle.get("model", "")).strip().lower()
+        years_range = _parse_years_range(vehicle.get("years") or vehicle.get("Years"))
 
         if not make and not model:
             listings = []
@@ -117,6 +139,10 @@ def retrieve_listings_from_csv(
 
             if model and "model" in df.columns:
                 mask &= df["model"].str.contains(model, case=False, na=False)
+
+            if years_range is not None and "year" in df.columns:
+                min_year, max_year = years_range
+                mask &= df["year"].between(min_year, max_year, inclusive="both")
 
             listings_raw = df[mask].to_dict(orient="records")
             # Select top n using custom ranking function
