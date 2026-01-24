@@ -1,0 +1,10 @@
+openai
+pinecone
+pandas
+tiktoken
+python-dotenv
+numpy
+tqdm
+langchain-openai
+fastapi
+uvicorn[standard]
