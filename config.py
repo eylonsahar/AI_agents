@@ -12,6 +12,7 @@ TOP_K = 5  # number of chunks to retrieve (max 30)
 # Agent configuration
 MAX_RECOMMENDED_VEHICLES = 3  # Maximum number of vehicles to recommend
 
+
 # OpenAI models
 EMBEDDING_MODEL = "RPRTHPB-text-embedding-3-small"
 EMBEDDING_BASE_URL = "https://api.llmod.ai/v1"
@@ -32,3 +33,12 @@ METADATA_COLUMNS = [
 ]
 # Column to embed
 EMBEDDED_COLUMN = 'all_text'
+
+
+# Field agent configurations
+NUM_AVAILABLE_DATES = 2 # Number of date+time options for a meeting with a seller
+MEETING_DURATION = 30   # Duration of a meeting with a seller in minutes
+MEETING_TIMEFRAME = 14  # Number of the following days to consider for a meeting with a seller
+
+# Supervisor configurations
+MANDATORY_INFO = ['max_price', 'year_min'] # Mandatory info to get from the user
