@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 from agents.search_agents.vehicle_model_retriever import VehicleModelRetriever
 from agents.search_agents.listings_retriever import ListingsRetriever
 from gateways import LLMGateway

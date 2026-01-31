@@ -39,6 +39,21 @@ EMBEDDED_COLUMN = 'all_text'
 NUM_AVAILABLE_DATES = 2 # Number of date+time options for a meeting with a seller
 MEETING_DURATION = 30   # Duration of a meeting with a seller in minutes
 MEETING_TIMEFRAME = 14  # Number of the following days to consider for a meeting with a seller
+MANDATORY_INFO = ['max_price', 'year_min'] # Mandatory info to get from the user
+GUARANTEED_MISSING_FIELDS = ["mileage", "accident"] # Fields that are guaranteed to be missing and must be filled
+CRITICAL_FIELDS = [
+    "price",
+    "year",
+    "condition",
+    "mileage",
+    "accident",
+    "manufacturer",
+    "model",
+    "paint_color",
+    "state"
+]
+MAX_DECISION_ITERATIONS = 50 # Max decision iteration to prevent infinite loop
+
 
 # Supervisor configurations
-MANDATORY_INFO = ['max_price', 'year_min'] # Mandatory info to get from the user
+NUM_TARGET_LISTINGS = 4

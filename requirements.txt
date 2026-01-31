@@ -8,3 +8,5 @@ tqdm
 langchain-openai
 fastapi
 uvicorn[standard]
+
+pinecone-client
