@@ -161,16 +161,165 @@ def prepare_vehicle_chunks(vehicles: List[Dict]) -> List[Dict]:
 
 
 def _get_embedding_gateway() -> EmbeddingGateway:
-    """Factory to return the configured embedding gateway.
+    """Factory to return the singleton embedding gateway.
     
     Returns:
-        EmbeddingGateway instance configured with settings from config
+        EmbeddingGateway singleton instance configured with settings from config
     """
-    return EmbeddingGateway(
+    return EmbeddingGateway.get_instance(
         api_key=os.getenv("OPENAI_API_KEY"),
         model=EMBEDDING_MODEL,
         base_url=EMBEDDING_BASE_URL
     )
+
+
+
+def load_articles_from_directory(articles_dir: str) -> List[Dict]:
+    """
+    Load all text articles from a directory.
+    
+    Args:
+        articles_dir: Path to directory containing .txt article files
+    
+    Returns:
+        List of article dictionaries with filename and content
+    """
+    articles = []
+    import os
+    
+    if not os.path.exists(articles_dir):
+        raise FileNotFoundError(f"Articles directory not found: {articles_dir}")
+    
+    for filename in os.listdir(articles_dir):
+        if filename.endswith('.txt'):
+            file_path = os.path.join(articles_dir, filename)
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                
+                if content:  # Only add non-empty articles
+                    articles.append({
+                        'filename': filename,
+                        'file_path': file_path,
+                        'content': content
+                    })
+            except Exception as e:
+                print(f"Warning: Could not read {filename}: {e}")
+    
+    return articles
+
+
+def prepare_article_chunks(articles: List[Dict]) -> List[Dict]:
+    """
+    Process article data into chunks with metadata.
+    
+    Args:
+        articles: List of article dictionaries with filename and content
+    
+    Returns:
+        List of chunk dictionaries ready for embedding
+    """
+    chunks = []
+    for article in tqdm(articles, desc="Processing articles"):
+        content = article.get('content', '')
+        if not content.strip():
+            continue
+            
+        # Create chunks from article content
+        text_chunks = create_chunks_from_text(content, CHUNK_SIZE, OVERLAP_RATIO)
+        
+        # Create metadata from the article data
+        metadata = {
+            'filename': article.get('filename', ''),
+            'file_path': article.get('file_path', ''),
+            'source_type': 'article'
+        }
+        
+        # Create chunks with metadata
+        for i, chunk_text in enumerate(text_chunks):
+            chunk_metadata = metadata.copy()
+            chunk_metadata.update({
+                'chunk_index': i,
+                'total_chunks': len(text_chunks),
+                'chunk_id': f"{article.get('filename', '').replace('.txt', '')}_{i}"
+            })
+            
+            chunks.append({
+                'id': chunk_metadata['chunk_id'],
+                'text': chunk_text,
+                'metadata': chunk_metadata
+            })
+    
+    return chunks
+
+
+def main_articles(
+    index_name: str,
+    articles_dir: str,
+    dimensions: int = EMBEDDING_DIMENSIONS
+):
+    """
+    Article-specific pipeline: Load articles, chunk, embed, and upload to Pinecone.
+    
+    Args:
+        index_name: Name of the Pinecone index to use
+        articles_dir: Path to directory containing .txt article files
+        dimensions: Embedding dimensions (default from config)
+    """
+    # Initialize embedding gateway
+    print("="*80)
+    print("ARTICLE EMBEDDING PIPELINE")
+    print("="*80)
+    print(f"  Index: {index_name}")
+    print(f"  Articles directory: {articles_dir}")
+    print(f"  Dimensions: {dimensions}")
+    print("\n[1/5] Initializing embeddings client...")
+    print("  Provider: EmbeddingGateway (OpenAI)")
+    print(f"  Model: {EMBEDDING_MODEL}")
+    print(f"  Base URL: {EMBEDDING_BASE_URL}")
+
+    embedding_gateway = _get_embedding_gateway()
+    print("  ✅ Embedding gateway initialized")
+    
+    # Load articles
+    print(f"\n[2/5] Loading articles...")
+    print(f"  Articles directory: {articles_dir}")
+    
+    articles = load_articles_from_directory(articles_dir)
+    print(f" ✅ Loaded {len(articles)} articles")
+    
+    # Show loaded articles
+    if articles:
+        print("\nLoaded articles:")
+        for article in articles[:5]:  # Show first 5
+            print(f"  - {article['filename']} ({len(article['content'])} chars)")
+        if len(articles) > 5:
+            print(f"  ... and {len(articles) - 5} more")
+
+    # Prepare chunks
+    print(f"\n[3/5] Preparing chunks...")
+    chunks = prepare_article_chunks(articles)
+    print(f"  ✅ Created {len(chunks)} chunks")
+    
+    # Show sample chunks
+    if chunks:
+        print("\nSample chunk:")
+        print(f"  ID: {chunks[0]['id']}")
+        print(f"  Text length: {len(chunks[0]['text'])} chars")
+        print(f"  Metadata keys: {list(chunks[0]['metadata'].keys())}")
+    
+    # Initialize Pinecone
+    print(f"\n[4/5] Initializing Pinecone...")
+    index = initialize_pinecone(index_name, dimensions)
+    print("  ✅ Pinecone ready")
+    
+    # Upload to Pinecone
+    print(f"\n[5/5] Uploading to Pinecone...")
+    upload_to_pinecone(chunks, index, embedding_gateway, batch_size=50)
+    
+    # Verify upload
+    stats = index.describe_index_stats()
+    print(f"\n✅ Verification: Index now contains {stats['total_vector_count']} vectors")
 
 
 def main(
@@ -242,17 +391,16 @@ def main(
 
 
 if __name__ == "__main__":
-    # if len(sys.argv) < 3:
-    #     print("Usage: python embedding_pipeline.py <index_name> <data_path> [--full]")
-    #     print("Example: python embedding_pipeline.py vehicle-info-rag data/all_cars_data.jsonl")
-    #     sys.exit(1)
-    #
-    # index_name = sys.argv[1]
-    # data_path = sys.argv[2]
-    # use_full = '--full' in sys.argv
-    #
-    main(
-        index_name='vehicles-info',
-        data_path="/Users/esahar/Documents/private/project/AI_agents/rag/data/all_cars_data.jsonl",
-        use_full_dataset=True
-    )
+
+        #
+        # main_articles(index_name='vehicle-articles',
+        #               articles_dir='/Users/eylonsahar/PycharmProjects/AI_agents/rag/data/articles'
+        # )
+
+        
+        # Default to vehicle pipeline for backward compatibility
+        main(
+            index_name='filtered-vehicles-info',
+            data_path="/Users/eylonsahar/PycharmProjects/AI_agents/rag/data/filtered_all_cars_data.jsonl",
+            use_full_dataset=True
+        )
