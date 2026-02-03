@@ -1,0 +1,215 @@
+from dataclasses import dataclass
+from typing import Dict, Any, Optional, List
+
+
+@dataclass
+class VehicleModel:
+    make: str
+    model: str
+    body_type: str
+    years: str
+    match_score: float
+    match_reason: str
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'VehicleModel':
+        """Create VehicleModel from dictionary."""
+        return cls(
+            make=data.get('make', ''),
+            model=data.get('model', ''),
+            body_type=data.get('body_type', ''),
+            years=data.get('years', ''),
+            match_score=data.get('match_score', 0.0),
+            match_reason=data.get('match_reason', '')
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        return {
+            'make': self.make,
+            'model': self.model,
+            'body_type': self.body_type,
+            'years': self.years,
+            'match_score': self.match_score,
+            'match_reason': self.match_reason
+        }
+
+
+@dataclass
+class VehicleModelsResult:
+    query: str
+    vehicles: List[VehicleModel]
+    explanation: str
+    raw_result: Dict[str, Any]  # Complete result from vehicle_retriever
+    
+    @classmethod
+    def from_raw_result(cls, query: str, raw_result: Dict[str, Any]) -> 'VehicleModelsResult':
+        """Create VehicleModelsResult from raw retriever output."""
+        vehicles_data = raw_result.get('vehicles', [])
+        vehicles = [VehicleModel.from_dict(v) for v in vehicles_data]
+        explanation = raw_result.get('explanation', '')
+        return cls(
+            query=query,
+            vehicles=vehicles,
+            explanation=explanation,
+            raw_result=raw_result
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        return self.raw_result
+
+
+@dataclass
+class ScoredListing:
+    listing: 'VehicleListing'
+    vehicle_model: VehicleModel
+    final_score: float
+    model_score: float
+    listing_score: float
+    reasons: List[str]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        return {
+            'listing': self.listing.to_dict(),
+            'vehicle_model': self.vehicle_model.to_dict(),
+            'final_score': self.final_score,
+            'model_score': self.model_score,
+            'listing_score': self.listing_score,
+            'reasons': self.reasons
+        }
+
+
+@dataclass
+class VehicleListing:
+    id: str
+    region: Optional[str] = None
+    price: Optional[float] = None
+    year: Optional[float] = None
+    condition: Optional[str] = None
+    paint_color: Optional[str] = None
+    state: Optional[str] = None
+    posting_date: Optional[str] = None
+    mileage: Optional[str] = None
+    accident: Optional[str] = None
+    meetings: Optional[List[Any]] = None
+    
+    # Additional fields from CSV that may be present
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'VehicleListing':
+        """Create VehicleListing from dictionary."""
+        return cls(
+            id=str(data.get('id', '')),
+            region=data.get('region'),
+            price=data.get('price'),
+            year=data.get('year'),
+            condition=data.get('condition'),
+            paint_color=data.get('paint_color'),
+            state=data.get('state'),
+            posting_date=data.get('posting_date'),
+            mileage=data.get('mileage'),
+            accident=data.get('accident'),
+            meetings=data.get('meetings', []),
+            manufacturer=data.get('manufacturer'),
+            model=data.get('model')
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        result = {
+            'id': self.id,
+            'region': self.region,
+            'price': self.price,
+            'year': self.year,
+            'condition': self.condition,
+            'paint_color': self.paint_color,
+            'state': self.state,
+            'posting_date': self.posting_date,
+            'mileage': self.mileage,
+            'accident': self.accident,
+            'meetings': self.meetings
+        }
+        if self.manufacturer:
+            result['manufacturer'] = self.manufacturer
+        if self.model:
+            result['model'] = self.model
+        return {k: v for k, v in result.items() if v is not None}
+
+
+@dataclass
+class RecommendationOutput:
+    listing_id: str
+    score: float
+    vehicle_model: str
+    reasoning: str
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to the required output format."""
+        return {
+            "score": self.score,
+            "vehicle_model": self.vehicle_model,
+            "reasoning": self.reasoning
+        }
+
+
+@dataclass
+class UserQuery:
+    """
+    User input for vehicle recommendation.
+    
+    TODO: Extend with additional fields based on user requirements:
+    - budget_min, budget_max
+    - preferred_location
+    - preferred_condition
+    - preferred_years
+    """
+    query_text: str  # Natural language query
+    top_n_models: int = 5  # Number of models to retrieve in Stage 1
+    top_k_listings: int = 10  # Number of listings to return in Stage 2
+    
+    # Optional filters (TODO: expand based on user needs)
+    max_price: Optional[float] = None
+    min_year: Optional[int] = None
+    preferred_state: Optional[str] = None
+
+
+@dataclass
+class PipelineResult:
+    """
+    Result from the complete search pipeline.
+    
+    Contains results from all three stages:
+    - Stage 1: Vehicle Model Retrieval (VehicleModelsResult)
+    - Stage 2: Listings Retrieval (retrieved_listings as List[VehicleListing])
+    - Stage 3: Decision Ranking (ranked_listings as ordered List[VehicleListing])
+    """
+    query: str
+    total_vehicles: int
+    total_listings: int
+    ranked_listings: List['VehicleListing']  # Ordered list of VehicleListing objects
+    recommendations: Dict[str, Dict[str, Any]]
+    vehicle_models_result: Optional[VehicleModelsResult] = None  # Stage 1 result
+    retrieved_listings: Optional[List[VehicleListing]] = None  # Stage 2 raw result
+    scored_listings: Optional[List[ScoredListing]] = None  # Stage 3 detailed scoring
+    raw_vehicle_models_result: Optional[Dict[str, Any]] = None  # Raw output from Stage 1
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        result = {
+            "query": self.query,
+            "total_vehicles": self.total_vehicles,
+            "total_listings": self.total_listings,
+            "recommendations": self.recommendations,
+            "ranked_listings": [listing.to_dict() for listing in self.ranked_listings],
+            "retrieved_listings": [listing.to_dict() for listing in (self.retrieved_listings or [])],
+            "scored_listings": [sl.to_dict() for sl in (self.scored_listings or [])],
+            "raw_vehicle_models_result": self.raw_vehicle_models_result
+        }
+        if self.vehicle_models_result:
+            result["vehicle_models"] = self.vehicle_models_result.to_dict()
+        return result
+
