@@ -97,7 +97,7 @@ APPROVED KEYS:
 - manufacturer
 - model
 - condition
-- color
+- paint_color
 - state (in the USA)
 
 CRITICAL RULES:
@@ -107,10 +107,14 @@ CRITICAL RULES:
 4. Accident: Return the date of the last accident or "none".
 5. No Filler: Return only the key-value pairs. No greetings or Markdown code blocks.
 6. Condition: MUST be one of: [new, like new, excellent, good, fair, salvage].
+7. Paint Color: ALWAYS provide a realistic color (e.g., black, white, silver, blue, red, gray, etc.)
+8. State: ALWAYS provide a valid 2-letter US state code (e.g., CA, TX, NY, FL, etc.)
 
 REQUIRED OUTPUT FORMAT:
 mileage = <number>
 accident = <date_or_none>
+paint_color = <color_name>
+state = <two_letter_state_code>
 <key> = <value>
 
 EXAMPLE RESPONSE:
@@ -118,7 +122,10 @@ mileage = 142000
 accident = none
 price = 15000
 manufacturer = ford
-color = black
+paint_color = black
+state = ca
+condition = good
+year = 2015
 """
 
 MOCK_SELLER_SCHEDULING_PROMPT = """You are a private individual selling your used car. You are friendly, professional, and looking to coordinate a viewing with a buyer.
@@ -131,3 +138,78 @@ RULES:
 - Strict Format: Each slot must be on a new line in 'YYYY-MM-DD HH:MM' format.
 - No Conversation: Do not include "I can meet at..." or "Let me know what works." 
 - Return ONLY the list of dates and times."""
+
+
+# ============================================================================
+# Agent Decision-Making Prompt
+# ============================================================================
+
+FIELD_AGENT_DECISION_PROMPT = """You are an autonomous field agent completing vehicle listings and scheduling meetings.
+
+CURRENT STATE:
+{state}
+
+WORKFLOW (repeat per listing, in order):
+1. Fill ALL missing fields: price, year, manufacturer, model, mileage, accident, condition, paint_color, state
+2. Verify listing is 100% complete
+3. Schedule meeting
+4. Move to next listing
+
+TOOLS:
+1. fill_missing_data - Contact seller for missing fields
+   - Use when: ANY fields are missing
+   - Input: listing_id, fields_to_request (request all missing fields at once)
+
+2. schedule_meeting - Generate calendar links
+   - Use when: ALL fields are filled
+   - Input: listing_id
+   - MUST be called for every complete listing before moving on
+
+3. complete_processing - Mark done
+   - Use when: ALL listings have meetings scheduled
+
+RESPONSE (JSON only):
+{{
+  "reasoning": "Which listing you're working on and why.",
+  "action": "fill_missing_data|schedule_meeting|complete_processing",
+  "parameters": {{
+    "listing_id": "...",
+    "fields_to_request": ["field1", "field2"]  // fill_missing_data only
+  }}
+}}"""
+
+
+# ============================================================================
+# Supervisor Decision-Making Prompt
+# ============================================================================
+
+SUPERVISOR_DECISION_PROMPT = """You are an autonomous supervisor coordinating a car-finding system.
+
+GOAL: Find {target_listings} complete vehicle listings and schedule meetings for them.
+
+CURRENT STATE:
+{state}
+
+ACTIONS:
+1. search_vehicle_models - Find matching vehicle types
+   - Use when: Have user requirements but no vehicle models yet
+
+2. retrieve_listings - Get for-sale listings from database
+   - Use when: Have vehicle models but no listings yet
+
+3. process_listings - Delegate to field agent for completion and scheduling
+   - Use when: Have listings that need processing
+
+4. complete_mission - Present final results to user
+   - Use when: Have {target_listings}+ complete listings with meetings
+
+RESPONSE (JSON only):
+{{
+  "reasoning": "Analysis of current state and what to do next",
+  "action": "search_vehicle_models|retrieve_listings|process_listings|complete_mission",
+  "parameters": {{
+    "top_n_models": {MAX_RECOMMENDED_VEHICLES}
+  }},
+  "confidence": "high|medium|low",
+  "expected_outcome": "What this action will achieve"
+}}"""

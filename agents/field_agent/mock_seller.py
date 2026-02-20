@@ -1,6 +1,5 @@
 from gateways.llm_gateway import LLMGateway
 from agents.prompts import MOCK_SELLER_SYSTEM_PROMPT, MOCK_SELLER_SCHEDULING_PROMPT
-from config import NUM_AVAILABLE_DATES
 from dotenv import load_dotenv
 import os
 

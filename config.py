@@ -17,9 +17,9 @@ MAX_LISTINGS_PER_VEHICLE = 3  # Maximum number of listings to return per vehicle
 
 # Data paths
 LISTINGS_CSV_PATH = os.path.join(
-    os.path.dirname(__file__), 
-    "rag", 
-    "data", 
+    os.path.dirname(__file__),
+    "rag",
+    "data",
     "cars_for_sale.csv"
 )
 
@@ -56,3 +56,20 @@ MEETING_TIMEFRAME = 14  # Number of the following days to consider for a meeting
 
 # Supervisor configurations
 MANDATORY_INFO = ['max_price', 'year_min'] # Mandatory info to get from the user
+GUARANTEED_MISSING_FIELDS = ["mileage", "accident"] # Fields that are guaranteed to be missing and must be filled
+CRITICAL_FIELDS = [
+    "price",
+    "year",
+    "condition",
+    "mileage",
+    "accident",
+    "manufacturer",
+    "model",
+    "paint_color",
+    "state"
+]
+MAX_DECISION_ITERATIONS = 50 # Max decision iteration to prevent infinite loop
+
+
+# Supervisor configurations
+NUM_TARGET_LISTINGS = 4
