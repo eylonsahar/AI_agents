@@ -7,7 +7,7 @@ and provide clear error messages when they don't.
 
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
-from config import MAX_RECOMMENDED_VEHICLES
+from config import MAX_RECOMMENDED_MODELS
 
 
 class VehicleRecommendation(BaseModel):
@@ -34,7 +34,7 @@ class VehicleRecommendationResponse(BaseModel):
     
     vehicles: List[VehicleRecommendation] = Field(
         default_factory=list,
-        description=f"List of recommended vehicles (up to {MAX_RECOMMENDED_VEHICLES})"
+        description=f"List of recommended vehicles (up to {MAX_RECOMMENDED_MODELS})"
     )
     explanation: str = Field(..., description="Overall reasoning for the recommendations")
     
@@ -42,8 +42,8 @@ class VehicleRecommendationResponse(BaseModel):
     @classmethod
     def validate_vehicles_count(cls, v):
         """Ensure no more than MAX_RECOMMENDED_VEHICLES are returned."""
-        if len(v) > MAX_RECOMMENDED_VEHICLES:
-            raise ValueError(f"Maximum {MAX_RECOMMENDED_VEHICLES} vehicles allowed, got {len(v)}")
+        if len(v) > MAX_RECOMMENDED_MODELS:
+            raise ValueError(f"Maximum {MAX_RECOMMENDED_MODELS} vehicles allowed, got {len(v)}")
         return v
 
 

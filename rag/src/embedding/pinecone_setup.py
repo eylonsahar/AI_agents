@@ -77,12 +77,7 @@ def delete_index(index_name: str):
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python pinecone_setup.py <index_name>")
-        sys.exit(1)
-    
-    index_name = sys.argv[1]
+    index_name = "filtered-vehicles-info"
     print(f"Initializing Pinecone for index: {index_name}...")
-    index = initialize_pinecone(index_name)
+    index = delete_index(index_name)
     print("\nPinecone setup complete!")

@@ -8,6 +8,7 @@ This module provides a single entry point for LLM interactions with:
 - Model selection
 
 Wraps the existing ChatOpenAI client from the RAG system.
+Implemented as a singleton to ensure only one instance exists.
 """
 
 import time
@@ -29,11 +30,14 @@ LLM_MAX_TOKENS = 4000  # Increased to allow for reasoning tokens + output conten
 
 class LLMGateway:
     """
-    Centralized gateway for all LLM calls.
+    Centralized gateway for all LLM calls (Singleton).
     
     Provides retry logic, timeout handling, and usage tracking.
     Reuses the existing ChatOpenAI client from the RAG system.
+    Only one instance of this class will exist throughout the application.
     """
+    
+    _instance: Optional['LLMGateway'] = None
     
     def __init__(
         self,
@@ -46,6 +50,9 @@ class LLMGateway:
     ):
         """
         Initialize LLM Gateway.
+        
+        Note: Use get_instance() class method instead of direct instantiation
+        to ensure singleton behavior.
         
         Args:
             api_key: OpenAI API key
@@ -67,6 +74,46 @@ class LLMGateway:
             max_tokens=max_tokens,
             request_timeout=timeout
         )
+
+    @classmethod
+    def get_instance(
+        cls,
+        api_key: str,
+        model: str = CHAT_MODEL,
+        base_url: str = CHAT_BASE_URL,
+        temperature: float = LLM_TEMPERATURE,
+        max_tokens: int = LLM_MAX_TOKENS,
+        timeout: int = LLM_TIMEOUT
+    ) -> 'LLMGateway':
+        """
+        Get the singleton instance of LLMGateway.
+        
+        Args:
+            api_key: OpenAI API key
+            model: Model name (default from config)
+            base_url: API base URL (default from config)
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens in response
+            timeout: Request timeout in seconds
+        
+        Returns:
+            The singleton LLMGateway instance
+        """
+        if cls._instance is None:
+            cls._instance = cls(
+                api_key=api_key,
+                model=model,
+                base_url=base_url,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout
+            )
+        return cls._instance
+    
+    @classmethod
+    def reset_instance(cls):
+        """Reset the singleton instance (useful for testing)."""
+        cls._instance = None
 
     def call_llm(
         self,
@@ -128,4 +175,3 @@ class LLMGateway:
         # All retries exhausted
         raise Exception(f"LLM Gateway: All {retry_attempts} attempts failed. Last error: {str(last_exception)}")
     
-

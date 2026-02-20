@@ -1,6 +1,11 @@
 from typing import List, Dict, Tuple, Callable, Optional
 from gateways import LLMGateway, EmbeddingGateway
-from config import TOP_K
+from config import NUM_OF_CHUNKS_TO_RETRIEVE, PINECONE_INDEX_NAME, EMBEDDING_DIMENSIONS
+import os
+from pinecone import Pinecone
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class RAGRetriever:
@@ -36,7 +41,7 @@ class RAGRetriever:
         self.system_prompt = system_prompt
         self.context_formatter = context_formatter
     
-    def search_similar_chunks(self, query: str, top_k: int = TOP_K) -> List[Dict]:
+    def search_similar_chunks(self, query: str, top_k: int = NUM_OF_CHUNKS_TO_RETRIEVE) -> List[Dict]:
         """
         Search for similar chunks in Pinecone.
         
@@ -66,6 +71,15 @@ class RAGRetriever:
             })
         
         return chunks
+
+    def retrieve_context(self, user_query: str, top_k: int = NUM_OF_CHUNKS_TO_RETRIEVE) -> Tuple[List[Dict], str]:
+        chunks = self.search_similar_chunks(user_query, top_k=top_k)
+
+        if not chunks:
+            return [], ""
+
+        context = self.context_formatter(chunks)
+        return chunks, context
     
     def generate_response(self, query: str, context: str) -> Tuple[str, Dict]:
         """
@@ -87,7 +101,7 @@ class RAGRetriever:
         
         return self.llm_gateway.call_llm(prompt=full_prompt)
     
-    def query(self, user_query: str, top_k: int = TOP_K) -> Dict:
+    def query(self, user_query: str, top_k: int = NUM_OF_CHUNKS_TO_RETRIEVE) -> Dict:
         """
         Main RAG query function.
         Retrieves relevant chunks and generates response.
@@ -112,4 +126,41 @@ class RAGRetriever:
             'chunks': chunks,
             'usage': usage
         }
+
+
+def get_pinecone_index(index_name: str = None, dimensions: int = EMBEDDING_DIMENSIONS):
+    """
+    Initialize Pinecone and get the index object.
+    
+    Args:
+        index_name: Name of the Pinecone index (default from config)
+        dimensions: Embedding dimensions (default from config)
+    
+    Returns:
+        Pinecone index object
+    """
+    if index_name is None:
+        index_name = PINECONE_INDEX_NAME
+    
+    api_key = os.getenv('PINECONE_API_KEY')
+    if not api_key:
+        raise ValueError("PINECONE_API_KEY not found in environment variables")
+    
+    # Initialize Pinecone
+    pc = Pinecone(api_key=api_key)
+    
+    # Check if index exists
+    existing_indexes = pc.list_indexes().names()
+    if index_name not in existing_indexes:
+        raise ValueError(f"Index '{index_name}' not found. Available indexes: {existing_indexes}")
+    
+    # Get the index
+    index = pc.Index(index_name)
+    
+    # Verify index stats
+    stats = index.describe_index_stats()
+    print(f"Connected to Pinecone index '{index_name}'")
+    print(f"Index stats: {stats}")
+    
+    return index
 

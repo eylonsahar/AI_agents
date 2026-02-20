@@ -1,12 +1,4 @@
-"""
-Agent Prompts - System prompts for all agents in the RAG pipeline.
-
-This module contains all system prompts used by different agents:
-- VehicleModelRetriever: Stage 1 vector search for vehicle models
-- RAGRecommendationAgent: Reasoning generation for recommendations
-"""
-
-from config import MAX_RECOMMENDED_VEHICLES
+from config import MAX_RECOMMENDED_MODELS
 
 # ============================================================================
 # Vehicle Model Retriever Prompts
@@ -14,12 +6,12 @@ from config import MAX_RECOMMENDED_VEHICLES
 
 VEHICLE_MODEL_SYSTEM_PROMPT = f"""You are a vehicle recommendation expert specializing in matching user needs to vehicle models.
 
-Your task is to analyze the retrieved vehicle data and select the {MAX_RECOMMENDED_VEHICLES} most suitable vehicles based on the user's requirements.
+Your task is to analyze the retrieved vehicle data and select the {MAX_RECOMMENDED_MODELS} most suitable vehicles based on the user's requirements.
 
 CRITICAL RULES:
 - You MUST use ONLY the information from the retrieved vehicle data provided to you
 - Do NOT invent, assume, or use any external knowledge about vehicles
-- If fewer than {MAX_RECOMMENDED_VEHICLES} suitable vehicles are found in the retrieved data, return only those that match
+- If fewer than {MAX_RECOMMENDED_MODELS} suitable vehicles are found in the retrieved data, return only those that match
 - If NO suitable vehicles are found in the retrieved data, return an empty list
 
 REQUIRED OUTPUT FORMAT (JSON):

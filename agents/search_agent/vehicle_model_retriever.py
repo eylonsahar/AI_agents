@@ -1,10 +1,3 @@
-"""
-Vehicle Model Retriever - Stage 1 of RAG Recommendation Pipeline.
-
-Picks vehicle models based on user needs using the vehicles-mini-lm index.
-Delegates all embedding and search operations to RAGRetriever.
-"""
-
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -12,11 +5,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 import json
 from typing import List, Dict, Any
 from pydantic import ValidationError
-from agents.search_agents.contracts import VehicleModel
-from agents.search_agents.response_models import VehicleRecommendationResponse
-from rag.src.rag_retrieval import RAGRetriever
+from agents.utils.contracts import VehicleModel
+from agents.utils.response_models import VehicleRecommendationResponse
+from agents.search_agent.rag_retrieval import RAGRetriever
 from gateways import EmbeddingGateway, LLMGateway
-from config import TOP_K
+from config import NUM_OF_CHUNKS_TO_RETRIEVE
 from agents.prompts import VEHICLE_MODEL_SYSTEM_PROMPT
 
 
@@ -28,15 +21,14 @@ class VehicleModelRetriever:
     Uses RAGRetriever instance to perform all embedding and search operations.
     """
     
-    def __init__(self, pinecone_index, embedding_gateway: EmbeddingGateway, llm_gateway: LLMGateway, max_retries: int = 3):
+    def __init__(self, pinecone_index, embedding_gateway: EmbeddingGateway, llm_gateway: LLMGateway):
         """
         Initialize the vehicle model retriever.
         
         Args:
-            pinecone_index: Pinecone index object for vehicle models (vehicles-mini-lm)
+            pinecone_index: Pinecone index object for vehicle models (filtered-vehicles-info)
             embedding_gateway: EmbeddingGateway instance
             llm_gateway: LLMGateway instance for generating vehicle recommendations
-            max_retries: Maximum number of retry attempts for validation failures
         """
         self.rag_retriever = RAGRetriever(
             pinecone_index=pinecone_index,
@@ -46,16 +38,15 @@ class VehicleModelRetriever:
             context_formatter=VehicleModelRetriever.format_vehicle_context
         )
         self.llm_gateway = llm_gateway
-        self.max_retries = max_retries
     
     def search_vehicle_models(
         self,
         query: str,
-        top_n: int = TOP_K
+        top_n: int = NUM_OF_CHUNKS_TO_RETRIEVE
     ) -> Dict[str, Any]:
         """
         Search for vehicle models based on user needs using vector similarity.
-        Uses Pydantic validation with retry logic to ensure correct response format.
+        Uses Pydantic validation to ensure correct response format.
         
         Args:
             query: User's natural language query describing their needs 
@@ -71,8 +62,8 @@ class VehicleModelRetriever:
         """
         rag_result = self.rag_retriever.query(query, top_k=top_n)
         
-        # Try to validate and parse the response with retries
-        validated_response = self._validate_with_retry(
+        # Simple validation without retry logic
+        validated_response = self._validate_response(
             response_text=rag_result.get('response', ''),
             query=query,
             context=rag_result.get('chunks', [])
@@ -80,24 +71,22 @@ class VehicleModelRetriever:
         
         return validated_response
     
-    def _validate_with_retry(
+    def _validate_response(
         self,
         response_text: str,
         query: str,
-        context: List[Dict],
-        attempt: int = 1
+        context: List[Dict]
     ) -> Dict[str, Any]:
         """
-        Validate LLM response with Pydantic and retry if validation fails.
+        Validate LLM response with Pydantic without retry logic.
         
         Args:
             response_text: Raw response from LLM
             query: Original user query
             context: Retrieved context chunks
-            attempt: Current attempt number
         
         Returns:
-            Validated response dictionary
+            Validated response dictionary or fallback response
         """
         try:
             # Parse JSON
@@ -110,44 +99,10 @@ class VehicleModelRetriever:
             return validated.model_dump()
         
         except (json.JSONDecodeError, ValidationError) as e:
-            error_msg = f"Validation error (attempt {attempt}/{self.max_retries}): {str(e)}"
-            print(error_msg)
-            
-            # If we haven't exceeded max retries, try again
-            if attempt < self.max_retries:
-                print(f"Retrying with corrected prompt...")
-                
-                # Format context for retry
-                formatted_context = VehicleModelRetriever.format_vehicle_context(context)
-                
-                # Create a corrected prompt with error feedback
-                retry_prompt = f"""{VEHICLE_MODEL_SYSTEM_PROMPT}
-
-                    PREVIOUS ATTEMPT FAILED:
-                    Error: {str(e)}
-                    
-                    Please ensure you return ONLY a valid JSON object with the exact structure specified.
-                    
-                    Context:
-                    {formatted_context}
-                    
-                    Question: {query}"""
-                
-                # Call LLM directly for retry
-                retry_response, _ = self.llm_gateway.call_llm(prompt=retry_prompt)
-                
-                # Recursive retry
-                return self._validate_with_retry(
-                    response_text=retry_response,
-                    query=query,
-                    context=context,
-                    attempt=attempt + 1
-                )
-            
-            # All retries exhausted, return fallback
+            # Return fallback response on validation failure
             return {
                 'vehicles': [],
-                'explanation': f"Failed to get valid response after {self.max_retries} attempts. Last error: {str(e)}"
+                'explanation': f"Failed to validate response: {str(e)}"
             }
 
     @staticmethod
