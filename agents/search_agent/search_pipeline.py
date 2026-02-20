@@ -98,30 +98,10 @@ class SearchPipeline:
         # Extract ranked listings from scored listings
         self.ranked_listings = [sl.listing for sl in scored_listings]
         
-        # Convert to final recommendation format
-        recommendations = {}
-        
-        for scored_listing in scored_listings:
-            listing = scored_listing.listing
-            listing_id = listing.id
-            vehicle_model = f"{scored_listing.vehicle_model.make} {scored_listing.vehicle_model.model}"
-            
-            recommendations[listing_id] = {
-                "score": round(scored_listing.final_score, 3),
-                "vehicle_model": vehicle_model,
-                "reasoning": " | ".join(scored_listing.reasons)
-            }
-        
         return PipelineResult(
             query=query,
-            total_vehicles=len(vehicles),
-            total_listings=total_listings,
-            ranked_listings=self.ranked_listings,
-            recommendations=recommendations,
             vehicle_models_result=self.recommended_models,
-            retrieved_listings=self.retrieved_listings,
-            scored_listings=scored_listings,
-            raw_vehicle_models_result=vehicle_models_result
+            scored_listings=scored_listings
         )
 
 
@@ -179,7 +159,7 @@ if __name__ == "__main__":
     pipeline = create_pipeline(pinecone_index=pinecone_index)
     
     # Test query
-    query = "reliable SUV for family"
+    query = "reliable mini for young couple"
     result = pipeline.search(query)
     
     print(json.dumps(result.to_dict(), indent=2))

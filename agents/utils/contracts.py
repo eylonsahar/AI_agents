@@ -92,7 +92,7 @@ class VehicleListing:
     state: Optional[str] = None
     posting_date: Optional[str] = None
     mileage: Optional[str] = None
-    accident: Optional[str] = None
+    accident: Optional[bool] = None
     meetings: Optional[List[Any]] = None
     
     # Additional fields from CSV that may be present
@@ -161,7 +161,6 @@ class UserQuery:
     """
     User input for vehicle recommendation.
     
-    TODO: Extend with additional fields based on user requirements:
     - budget_min, budget_max
     - preferred_location
     - preferred_condition
@@ -170,8 +169,6 @@ class UserQuery:
     query_text: str  # Natural language query
     top_n_models: int = 5  # Number of models to retrieve in Stage 1
     top_k_listings: int = 10  # Number of listings to return in Stage 2
-    
-    # Optional filters (TODO: expand based on user needs)
     max_price: Optional[float] = None
     min_year: Optional[int] = None
     preferred_state: Optional[str] = None
@@ -182,34 +179,21 @@ class PipelineResult:
     """
     Result from the complete search pipeline.
     
-    Contains results from all three stages:
-    - Stage 1: Vehicle Model Retrieval (VehicleModelsResult)
-    - Stage 2: Listings Retrieval (retrieved_listings as List[VehicleListing])
-    - Stage 3: Decision Ranking (ranked_listings as ordered List[VehicleListing])
+    Contains the essential results:
+    - query: The original search query
+    - vehicle_models_result: Stage 1 result with vehicle models
+    - scored_listings: Stage 3 detailed scoring results
     """
     query: str
-    total_vehicles: int
-    total_listings: int
-    ranked_listings: List['VehicleListing']  # Ordered list of VehicleListing objects
-    recommendations: Dict[str, Dict[str, Any]]
-    vehicle_models_result: Optional[VehicleModelsResult] = None  # Stage 1 result
-    retrieved_listings: Optional[List[VehicleListing]] = None  # Stage 2 raw result
-    scored_listings: Optional[List[ScoredListing]] = None  # Stage 3 detailed scoring
-    raw_vehicle_models_result: Optional[Dict[str, Any]] = None  # Raw output from Stage 1
+    vehicle_models_result: Optional[VehicleModelsResult] = None
+    scored_listings: Optional[List[ScoredListing]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
         result = {
             "query": self.query,
-            "total_vehicles": self.total_vehicles,
-            "total_listings": self.total_listings,
-            "recommendations": self.recommendations,
-            "ranked_listings": [listing.to_dict() for listing in self.ranked_listings],
-            "retrieved_listings": [listing.to_dict() for listing in (self.retrieved_listings or [])],
-            "scored_listings": [sl.to_dict() for sl in (self.scored_listings or [])],
-            "raw_vehicle_models_result": self.raw_vehicle_models_result
+            "vehicle_models_result": self.vehicle_models_result.to_dict() if self.vehicle_models_result else None,
+            "scored_listings": [sl.to_dict() for sl in (self.scored_listings or [])]
         }
-        if self.vehicle_models_result:
-            result["vehicle_models"] = self.vehicle_models_result.to_dict()
         return result
 

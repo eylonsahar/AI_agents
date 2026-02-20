@@ -46,7 +46,7 @@ def score_listings(listings: List[VehicleListing]) -> Dict[int, Tuple[float, Lis
     - Condition (excellent > good > fair)
     - Mileage (lower is better)
     - Accident history (none > minor > reported)
-    
+
     Args:
         listings: List of VehicleListing objects
         
@@ -120,18 +120,9 @@ def score_listings(listings: List[VehicleListing]) -> Dict[int, Tuple[float, Lis
                 pass
 
         # Accident history scoring
-
-        accident = (listing.accident or "").lower().strip()
-        accident_map = {
-            "none": 1.0,
-            "no accidents": 1.0,
-            "minor damage": 0.6,
-            "1 accident": 0.5,
-            "2 accidents": 0.3,
-            "3+ accidents": 0.1,
-            "at least 1 accident or damage reported": 0.4,
-        }
-        accident_score = accident_map.get(accident, 0.7)  # Default to moderate if unknown
+        accident_score = 0.7  # Default if not available
+        if listing.accident is not None:
+            accident_score = 1.0 if not listing.accident else 0.1
 
         # Weighted listing score
         # Price: 30%, Year: 25%, Condition: 20%, Mileage: 15%, Accident: 10%
@@ -174,24 +165,7 @@ class DecisionAgent:
     def __init__(self):
         """Initialize the DecisionAgent."""
         pass
-    
-    def rank_listings(
-        self, 
-        listings: List[VehicleListing],
-        vehicle_models_result: VehicleModelsResult
-    ) -> List[VehicleListing]:
-        """
-        Rank vehicle listings and return them ordered by score (highest first).
-        
-        Args:
-            listings: List of VehicleListing objects to rank
-            vehicle_models_result: VehicleModelsResult containing the recommended models
-            
-        Returns:
-            List of VehicleListing objects ordered by final score (highest first)
-        """
-        scored_listings = self.get_scored_listings(listings, vehicle_models_result)
-        return [sl.listing for sl in scored_listings]
+
     
     def get_scored_listings(
         self, 
