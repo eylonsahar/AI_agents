@@ -1,4 +1,5 @@
 from config import MAX_RECOMMENDED_MODELS
+from langchain_core.prompts import ChatPromptTemplate
 
 # ============================================================================
 # Vehicle Model Retriever Prompts
@@ -141,9 +142,42 @@ RULES:
 
 
 # ============================================================================
-# Agent Decision-Making Prompt
+# Agent Decision-Making Prompts  (LangChain ReAct format)
 # ============================================================================
 
+# Prompt for the FieldAgent ReAct loop.
+# Required placeholders: {tools}, {tool_names}, {agent_scratchpad}, {input}
+FIELD_AGENT_REACT_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """You are an autonomous field agent completing vehicle listings and scheduling meetings.
+
+WORKFLOW (repeat per listing, in order):
+1. Fill ALL missing fields: price, year, manufacturer, model, mileage, accident, condition, paint_color, state
+2. Verify listing is 100% complete
+3. Schedule meeting
+4. Move to next listing, repeat until ALL listings have meetings
+5. Call complete_processing when done
+
+You have access to these tools:
+{tools}
+
+To use a tool, use EXACTLY this format:
+Thought: <your reasoning>
+Action: <tool name from [{tool_names}]>
+Action Input: <input to the tool>
+Observation: <tool result>
+... (repeat Thought/Action/Action Input/Observation as needed)
+
+IMPORTANT: 
+- ONLY provide "Final Answer" after calling complete_processing successfully
+- Do NOT include "Final Answer" in the same response as an Action
+- When complete_processing returns success, then provide your final answer
+
+Begin!"""),
+    ("human", "{input}"),
+    ("ai", "{agent_scratchpad}"),
+])
+
+# Legacy string prompt kept for reference
 FIELD_AGENT_DECISION_PROMPT = """You are an autonomous field agent completing vehicle listings and scheduling meetings.
 
 CURRENT STATE:
@@ -155,53 +189,55 @@ WORKFLOW (repeat per listing, in order):
 3. Schedule meeting
 4. Move to next listing
 
-TOOLS:
-1. fill_missing_data - Contact seller for missing fields
-   - Use when: ANY fields are missing
-   - Input: listing_id, fields_to_request (request all missing fields at once)
-
-2. schedule_meeting - Generate calendar links
-   - Use when: ALL fields are filled
-   - Input: listing_id
-   - MUST be called for every complete listing before moving on
-
-3. complete_processing - Mark done
-   - Use when: ALL listings have meetings scheduled
-
 RESPONSE (JSON only):
 {{
   "reasoning": "Which listing you're working on and why.",
   "action": "fill_missing_data|schedule_meeting|complete_processing",
   "parameters": {{
     "listing_id": "...",
-    "fields_to_request": ["field1", "field2"]  // fill_missing_data only
+    "fields_to_request": ["field1", "field2"]
   }}
 }}"""
 
 
 # ============================================================================
-# Supervisor Decision-Making Prompt
+# Supervisor Decision-Making Prompts  (LangChain ReAct format)
 # ============================================================================
 
+# Prompt for the AgentSupervisor ReAct loop.
+# Required placeholders: {tools}, {tool_names}, {agent_scratchpad}, {input}
+SUPERVISOR_REACT_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """You are an autonomous supervisor coordinating a car-finding system.
+
+Your mission: find complete vehicle listings and schedule meetings for each one.
+
+You have access to these tools:
+{tools}
+
+Execute actions in this order:
+1. search_vehicle_models  → 2. retrieve_listings  → 3. process_listings  → 4. complete_mission
+
+To use a tool, use EXACTLY this format:
+Thought: <your reasoning>
+Action: <tool name from [{tool_names}]>
+Action Input: <input to the tool>
+Observation: <tool result>
+... (repeat as needed)
+Thought: The mission is complete.
+Final Answer: Mission complete.
+
+Begin!"""),
+    ("human", "{input}"),
+    ("ai", "{agent_scratchpad}"),
+])
+
+# Legacy string prompt kept for reference
 SUPERVISOR_DECISION_PROMPT = """You are an autonomous supervisor coordinating a car-finding system.
 
 GOAL: Find {target_listings} complete vehicle listings and schedule meetings for them.
 
 CURRENT STATE:
 {state}
-
-ACTIONS:
-1. search_vehicle_models - Find matching vehicle types
-   - Use when: Have user requirements but no vehicle models yet
-
-2. retrieve_listings - Get for-sale listings from database
-   - Use when: Have vehicle models but no listings yet
-
-3. process_listings - Delegate to field agent for completion and scheduling
-   - Use when: Have listings that need processing
-
-4. complete_mission - Present final results to user
-   - Use when: Have {target_listings}+ complete listings with meetings
 
 RESPONSE (JSON only):
 {{

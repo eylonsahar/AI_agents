@@ -66,7 +66,21 @@ class LLMGateway:
         self.timeout = timeout
         
         # Initialize ChatOpenAI client (reuses existing RAG logic)
-        self.client = ChatOpenAI(
+        # Create a custom client that filters out unsupported parameters
+        from langchain_openai import ChatOpenAI
+        
+        class CustomChatOpenAI(ChatOpenAI):
+            """Custom ChatOpenAI that filters out unsupported parameters."""
+            
+            def _stream(self, messages, stop=None, **kwargs):
+                # Remove the stop parameter before calling parent
+                return super()._stream(messages, stop=None, **kwargs)
+            
+            def _generate(self, messages, stop=None, **kwargs):
+                # Remove the stop parameter before calling parent
+                return super()._generate(messages, stop=None, **kwargs)
+        
+        self.client = CustomChatOpenAI(
             api_key=api_key,
             base_url=base_url,
             model=model,
