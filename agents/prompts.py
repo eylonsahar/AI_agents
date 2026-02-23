@@ -160,17 +160,18 @@ WORKFLOW (repeat per listing, in order):
 You have access to these tools:
 {tools}
 
-To use a tool, use EXACTLY this format:
-Thought: <your reasoning>
+RESPONSE FORMAT - You MUST follow this EXACTLY:
+
+Thought: <your reasoning about what to do next>
 Action: <tool name from [{tool_names}]>
 Action Input: <input to the tool>
-Observation: <tool result>
-... (repeat Thought/Action/Action Input/Observation as needed)
 
-IMPORTANT: 
-- ONLY provide "Final Answer" after calling complete_processing successfully
-- Do NOT include "Final Answer" in the same response as an Action
-- When complete_processing returns success, then provide your final answer
+CRITICAL RULES:
+- Output ONLY ONE action per response. STOP after "Action Input:".
+- Do NOT write "Observation:" - the system will provide it.
+- Do NOT simulate tool responses or write multiple actions.
+- Do NOT include "Final Answer" in the same response as an Action.
+- ONLY output "Final Answer:" after complete_processing has been called and returned.
 
 Begin!"""),
     ("human", "{input}"),

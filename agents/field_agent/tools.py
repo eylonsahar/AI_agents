@@ -8,7 +8,8 @@ to the shared ActionLog without any global variables.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+import json
+from typing import TYPE_CHECKING
 from langchain_core.tools import tool
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ def make_field_agent_tools(agent: "FieldAgent") -> list:
     """
 
     @tool
-    def fill_missing_data(listing_id: str, fields_to_request: List[str]) -> str:
+    def fill_missing_data(tool_input: str) -> str:
         """Contact the seller to obtain missing fields for a vehicle listing.
 
         Use this tool whenever a listing has one or more missing or empty
@@ -35,41 +36,52 @@ def make_field_agent_tools(agent: "FieldAgent") -> list:
         condition, paint_color, state).  Request ALL missing fields in a single
         call.
 
-        Args:
-            listing_id: The unique ID of the listing that needs data.
-            fields_to_request: List of field names that are missing, e.g.
-                ["mileage", "accident", "condition"].
+        Input: JSON with "listing_id" (string) and "fields_to_request" (list of field names).
+        Example: {"listing_id": "1001", "fields_to_request": ["mileage", "accident", "condition"]}
 
         Returns:
             A short status message confirming how many fields were filled.
         """
+        try:
+            data = json.loads(tool_input)
+            listing_id = data["listing_id"]
+            fields_to_request = data["fields_to_request"]
+        except (json.JSONDecodeError, KeyError) as e:
+            return f"Error parsing input: {e}. Expected JSON with 'listing_id' and 'fields_to_request'."
         return agent._tool_fill_missing_data(
             listing_id=listing_id,
             fields_to_request=fields_to_request,
         )
 
     @tool
-    def schedule_meeting(listing_id: str) -> str:
+    def schedule_meeting(tool_input: str) -> str:
         """Generate Google Calendar meeting links for a fully-completed listing.
 
         Only call this tool after ALL critical fields of a listing are filled.
         The tool contacts the mock seller for available time slots and attaches
         calendar links to the listing record.
 
-        Args:
-            listing_id: The unique ID of the listing to schedule meetings for.
+        Input: JSON with "listing_id" (string).
+        Example: {"listing_id": "1001"}
 
         Returns:
             A short status message confirming how many slots were scheduled.
         """
+        try:
+            data = json.loads(tool_input)
+            listing_id = data["listing_id"]
+        except (json.JSONDecodeError, KeyError) as e:
+            return f"Error parsing input: {e}. Expected JSON with 'listing_id'."
         return agent._tool_schedule_meeting(listing_id=listing_id)
 
     @tool
-    def complete_processing() -> str:
+    def complete_processing(tool_input: str = "") -> str:
         """Signal that ALL listings have been fully processed and have meetings scheduled.
 
         Call this tool only when every single listing has meetings scheduled.
         This terminates the agent loop.
+
+        Input: Empty string or any value (ignored).
 
         Returns:
             A confirmation message that processing is complete.

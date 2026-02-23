@@ -16,7 +16,7 @@ import json
 import urllib.parse
 from typing import Dict, List, Any, Tuple, Optional
 
-from langchain.agents import create_react_agent, AgentExecutor
+from langchain.agents import create_react_agent, AgentExecutor  # noqa
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 
@@ -115,7 +115,7 @@ class FieldAgent:
             tools=tools,
             max_iterations=max_iterations,
             verbose=True,
-            handle_parsing_errors=False,  # Disable error handling to see the actual issue
+            handle_parsing_errors=True,
             callbacks=[FieldAgentLogCallback(action_log)],
         )
 

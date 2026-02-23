@@ -5,8 +5,9 @@ tiktoken
 python-dotenv
 numpy
 tqdm
-langchain
-langchain-openai
+langchain==0.2.16
+langchain-openai==0.1.25
+langchain-core==0.2.40
 fastapi
 uvicorn[standard]
 pydantic
