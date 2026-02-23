@@ -1,3 +1,4 @@
+import re
 from config import MANDATORY_INFO
 
 
@@ -11,6 +12,100 @@ class UserCommunication:
             'year_max': '📅 What is the maximum year you would consider?',
             'max_mileage': '🛣️ What is the maximum mileage you would accept?',
         }
+        
+        # Validation rules for each field type
+        self._validators = {
+            'max_price': self._validate_price,
+            'year_min': self._validate_year,
+            'year_max': self._validate_year,
+            'max_mileage': self._validate_mileage,
+            'make': self._validate_text,
+            'model': self._validate_text,
+        }
+    
+    def _validate_price(self, value: str) -> tuple[bool, str]:
+        """Validate price is a positive number."""
+        # Remove common price symbols
+        cleaned = re.sub(r'[$,\s]', '', value)
+        try:
+            price = float(cleaned)
+            if price <= 0:
+                return False, "Price must be a positive number"
+            if price > 10_000_000:
+                return False, "Price seems unrealistic. Please enter a valid budget"
+            return True, cleaned
+        except ValueError:
+            return False, "Please enter a valid number (e.g., 30000 or $30,000)"
+    
+    def _validate_year(self, value: str) -> tuple[bool, str]:
+        """Validate year is a reasonable car year."""
+        try:
+            year = int(value)
+            if year < 1900 or year > 2025:
+                return False, "Please enter a valid year between 1900 and 2025"
+            return True, str(year)
+        except ValueError:
+            return False, "Please enter a valid year (e.g., 2015)"
+    
+    def _validate_mileage(self, value: str) -> tuple[bool, str]:
+        """Validate mileage is a positive number."""
+        cleaned = re.sub(r'[,\s]', '', value)
+        try:
+            mileage = int(cleaned)
+            if mileage < 0:
+                return False, "Mileage cannot be negative"
+            if mileage > 1_000_000:
+                return False, "Mileage seems unrealistic"
+            return True, cleaned
+        except ValueError:
+            return False, "Please enter a valid number (e.g., 100000)"
+    
+    def _validate_text(self, value: str) -> tuple[bool, str]:
+        """Validate text input is meaningful (not junk)."""
+        # Check minimum length
+        if len(value) < 2:
+            return False, "Please enter at least 2 characters"
+        
+        # Check for gibberish (no vowels or too many consonants in a row)
+        vowels = set('aeiouAEIOU')
+        has_vowel = any(c in vowels for c in value)
+        
+        # Allow numbers (for model names like "X5", "A4")
+        if not has_vowel and not any(c.isdigit() for c in value):
+            # Check if it's all consonants (likely junk)
+            if len(value) > 3:
+                return False, "Please enter a valid car make/model name"
+        
+        # Check for repeated characters (like "aaaa" or "xxxx")
+        if re.search(r'(.)\1{3,}', value):
+            return False, "Please enter a valid input"
+        
+        # Check for keyboard mashing patterns
+        junk_patterns = ['asdf', 'qwer', 'zxcv', 'hjkl', '1234', 'abcd']
+        value_lower = value.lower()
+        if any(pattern in value_lower for pattern in junk_patterns) and len(value) < 6:
+            return False, "Please enter a valid car make/model name"
+        
+        return True, value
+    
+    def _validate_description(self, value: str) -> tuple[bool, str]:
+        """Validate description is meaningful."""
+        if not value:
+            return True, value  # Description is optional
+        
+        if len(value) < 5:
+            return False, "Please provide a more detailed description (at least 5 characters)"
+        
+        # Check for pure gibberish
+        words = value.split()
+        if len(words) >= 2:
+            # Check if most words have vowels (real words usually do)
+            vowels = set('aeiouAEIOU')
+            valid_words = sum(1 for w in words if any(c in vowels for c in w) or len(w) <= 2)
+            if valid_words < len(words) / 2:
+                return False, "Please enter a meaningful description"
+        
+        return True, value
 
     ###########################
     # Get info from user
@@ -28,23 +123,38 @@ class UserCommunication:
 
         vehicle_request = {}
 
-        # 1. Collect Mandatory Info First
+        # 1. Collect Mandatory Info First with validation
         for key in MANDATORY_INFO:
             prompt = self.mandatory_info_prompts.get(key, f"Please enter {key.replace('_', ' ')}:")
+            validator = self._validators.get(key, lambda x: (True, x))
+            
             while True:
                 value = input(f"   {prompt} ").strip()
-                if value:
-                    vehicle_request[key] = value
+                if not value:
+                    print(f"   ⚠️ This field is required to start the search.")
+                    continue
+                
+                is_valid, result = validator(value)
+                if is_valid:
+                    vehicle_request[key] = result
                     break
-                print(f"   ⚠️ This field is required to start the search.")
+                else:
+                    print(f"   ⚠️ {result}")
 
-        # 2. Collect Natural Language Description Last
+        # 2. Collect Natural Language Description Last with validation
         print("\n" + "━" * 40)
         print("🎨 PERSONAL PREFERENCES")
         print("Now, tell me more about your lifestyle and preferences.")
         print("(This could be about you or any other specific preferences like paint color)")
-        description = input(" > ").strip()
-        vehicle_request['description'] = description
+        
+        while True:
+            description = input(" > ").strip()
+            is_valid, result = self._validate_description(description)
+            if is_valid:
+                vehicle_request['description'] = result
+                break
+            else:
+                print(f"   ⚠️ {result}")
 
         # 3. Concatenation: Create the flattened 'Super Query' for EmbeddingGateway
         query_parts = []

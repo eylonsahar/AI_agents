@@ -111,19 +111,21 @@ class RAGRetriever:
             top_k: Number of chunks to retrieve
         
         Returns:
-            Dictionary with response, chunks, and usage stats
+            Dictionary with response, chunks, prompt, and usage stats
         """
         chunks = self.search_similar_chunks(user_query, top_k=top_k)
         
         if not chunks:
-            return {'response': "No results found", 'chunks': [], 'usage': {}}
+            return {'response': "No results found", 'chunks': [], 'prompt': '', 'usage': {}}
         
         context = self.context_formatter(chunks)
+        full_prompt = f"{self.system_prompt}\n\nContext:\n\n{context}\n\nQuestion: {user_query}"
         response, usage = self.generate_response(user_query, context)
         
         return {
             'response': response,
             'chunks': chunks,
+            'prompt': full_prompt,
             'usage': usage
         }
 

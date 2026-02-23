@@ -99,6 +99,8 @@ class FieldAgent:
         self.processed_listings: Dict[str, str] = {}
         self.completed_listings: List[str] = []
         self.iteration_count = 0
+        self._processing_complete = False
+        self._fill_attempts: Dict[str, int] = {}  # Track fill attempts per listing
 
         # Build the LangChain ReAct agent
         llm = LLMGateway(api_key=OPENAI_API_KEY).client
@@ -213,6 +215,15 @@ class FieldAgent:
     # ========================================================================
     def _tool_fill_missing_data(self, listing_id: str, fields_to_request: List[str]) -> str:
         """Contact the mock seller to fill missing fields."""
+        # Track attempts - skip if already tried twice
+        self._fill_attempts[listing_id] = self._fill_attempts.get(listing_id, 0) + 1
+        if self._fill_attempts[listing_id] > 2:
+            return f"SKIP: Listing {listing_id} already processed. Move to the NEXT listing."
+        
+        # Skip if already completed
+        if listing_id in self.completed_listings:
+            return f"SKIP: Listing {listing_id} already has meetings scheduled. Move to the NEXT listing."
+        
         listing, vehicle_context = self._find_listing_by_id(listing_id)
         if not listing:
             return f"Error: Listing {listing_id} not found"
@@ -241,6 +252,10 @@ class FieldAgent:
 
     def _tool_schedule_meeting(self, listing_id: str) -> str:
         """Generate calendar links for a listing."""
+        # Skip if already completed
+        if listing_id in self.completed_listings:
+            return f"SKIP: Listing {listing_id} already has meetings scheduled. Move to the NEXT listing."
+        
         listing, vehicle_context = self._find_listing_by_id(listing_id)
         if not listing:
             return f"Error: Listing {listing_id} not found"
@@ -250,11 +265,13 @@ class FieldAgent:
         self.completed_listings.append(listing_id)
         self.processed_listings[listing_id] = "completed"
 
-        return f"Scheduled {len(meetings)} meeting slots for listing {listing_id}"
+        return f"Scheduled {len(meetings)} meeting slots for listing {listing_id}. Move to the NEXT listing."
 
     def _tool_complete_processing(self) -> str:
-        """Mark all work as complete."""
-        return "Processing marked as complete"
+        """Mark all work as complete and signal the agent to stop."""
+        self._processing_complete = True
+        total = len(self.completed_listings)
+        return f"Processing complete. {total} listings have meetings scheduled. You MUST now output 'Final Answer: Processing complete' to end."
 
     # ========================================================================
     # Main Agent Loop (LangChain ReAct)

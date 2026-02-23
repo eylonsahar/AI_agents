@@ -11,18 +11,82 @@ import json
 def main():
     """Run the Field Agent autonomously to process listings."""
     
-    # Sample data with a listing
+    # Real search pipeline output - Mini listings for young couple
     ads_list = {
         "results": [
             {
-                "vehicle": {"make": "Toyota", "model": "Camry"},
+                "vehicle": {"make": "Mini", "model": "Convertible"},
                 "listings": [
                     {
-                        "id": "1001",
-                        "price": "15000",
-                        "year": "2018",
-                        "manufacturer": "Toyota", 
-                        "model": "Camry",
+                        "id": "7316164401",
+                        "region": "boise",
+                        "price": 18695,
+                        "year": 2017,
+                        "condition": "",
+                        "paint_color": "white",
+                        "state": "id",
+                        "manufacturer": "mini",
+                        "model": "convertible"
+                    },
+                    {
+                        "id": "7316369262",
+                        "region": "sf bay area",
+                        "price": 25498,
+                        "year": 2018,
+                        "condition": "",
+                        "paint_color": "green",
+                        "state": "ca",
+                        "manufacturer": "mini",
+                        "model": "convertible"
+                    },
+                    {
+                        "id": "7314729537",
+                        "region": "orange county",
+                        "price": 19989,
+                        "year": 2017,
+                        "condition": "",
+                        "paint_color": "black",
+                        "state": "ca",
+                        "manufacturer": "mini",
+                        "model": "convertible"
+                    }
+                ]
+            },
+            {
+                "vehicle": {"make": "Mini", "model": "Roadster"},
+                "listings": [
+                    {
+                        "id": "7313757163",
+                        "region": "north jersey",
+                        "price": 8600,
+                        "year": 2012,
+                        "condition": "",
+                        "paint_color": "red",
+                        "state": "nj",
+                        "manufacturer": "mini",
+                        "model": "roadster"
+                    },
+                    {
+                        "id": "7313357806",
+                        "region": "central nj",
+                        "price": 8600,
+                        "year": 2012,
+                        "condition": "",
+                        "paint_color": "red",
+                        "state": "nj",
+                        "manufacturer": "mini",
+                        "model": "roadster"
+                    },
+                    {
+                        "id": "7313253966",
+                        "region": "south jersey",
+                        "price": 8600,
+                        "year": 2012,
+                        "condition": "",
+                        "paint_color": "red",
+                        "state": "nj",
+                        "manufacturer": "mini",
+                        "model": "roadster"
                     }
                 ]
             }

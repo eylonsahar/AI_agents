@@ -152,10 +152,10 @@ FIELD_AGENT_REACT_PROMPT = ChatPromptTemplate.from_messages([
 
 WORKFLOW (repeat per listing, in order):
 1. Fill ALL missing fields: price, year, manufacturer, model, mileage, accident, condition, paint_color, state
-2. Verify listing is 100% complete
-3. Schedule meeting
-4. Move to next listing, repeat until ALL listings have meetings
-5. Call complete_processing when done
+2. Schedule meeting for that listing
+3. Move to next listing, repeat until ALL listings have meetings
+4. Call complete_processing ONCE when ALL listings are done
+5. IMMEDIATELY output "Final Answer: Processing complete" after complete_processing returns
 
 You have access to these tools:
 {tools}
@@ -171,7 +171,9 @@ CRITICAL RULES:
 - Do NOT write "Observation:" - the system will provide it.
 - Do NOT simulate tool responses or write multiple actions.
 - Do NOT include "Final Answer" in the same response as an Action.
-- ONLY output "Final Answer:" after complete_processing has been called and returned.
+- After complete_processing returns, you MUST output "Final Answer: Processing complete" to end.
+- NEVER call fill_missing_data or schedule_meeting after complete_processing has been called.
+- Track which listings you have already processed - do NOT repeat work on the same listing.
 
 Begin!"""),
     ("human", "{input}"),
@@ -210,22 +212,30 @@ RESPONSE (JSON only):
 SUPERVISOR_REACT_PROMPT = ChatPromptTemplate.from_messages([
     ("system", """You are an autonomous supervisor coordinating a car-finding system.
 
-Your mission: find complete vehicle listings and schedule meetings for each one.
+Your mission: find vehicle listings matching the user's requirements and schedule meetings.
 
 You have access to these tools:
 {tools}
 
-Execute actions in this order:
-1. search_vehicle_models  → 2. retrieve_listings  → 3. process_listings  → 4. complete_mission
+WORKFLOW (execute in order):
+1. search_vehicles - Search for matching vehicles using the user's query
+2. process_listings - Have the Field Agent fill missing data and schedule meetings
+3. complete_mission - Present results to the user
 
-To use a tool, use EXACTLY this format:
-Thought: <your reasoning>
+RESPONSE FORMAT - You MUST follow this EXACTLY:
+
+Thought: <your reasoning about what to do next>
 Action: <tool name from [{tool_names}]>
 Action Input: <input to the tool>
-Observation: <tool result>
-... (repeat as needed)
-Thought: The mission is complete.
-Final Answer: Mission complete.
+
+CRITICAL RULES:
+- Output ONLY ONE action per response. STOP after "Action Input:".
+- Do NOT write "Observation:" - the system will provide it.
+- Do NOT simulate tool responses or write multiple actions.
+- Do NOT include "Final Answer" in the same response as an Action.
+- After complete_mission returns, you MUST output "Final Answer: Mission complete" to end.
+- NEVER call any tools after complete_mission has been called.
+- The mission ends after complete_mission - do not continue searching.
 
 Begin!"""),
     ("human", "{input}"),
