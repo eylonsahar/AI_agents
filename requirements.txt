@@ -5,6 +5,7 @@ tiktoken
 python-dotenv
 numpy
 tqdm
+langchain
 langchain-openai
 fastapi
 uvicorn[standard]
