@@ -183,10 +183,12 @@ class PipelineResult:
     - query: The original search query
     - vehicle_models_result: Stage 1 result with vehicle models
     - scored_listings: Stage 3 detailed scoring results
+    - action_log: Log of all LLM calls made during the pipeline
     """
     query: str
     vehicle_models_result: Optional[VehicleModelsResult] = None
     scored_listings: Optional[List[ScoredListing]] = None
+    action_log: Optional[Any] = None  # ActionLog instance
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
@@ -196,4 +198,9 @@ class PipelineResult:
             "scored_listings": [sl.to_dict() for sl in (self.scored_listings or [])]
         }
         return result
+    
+    def print_action_log(self) -> None:
+        """Print the action log if available."""
+        if self.action_log:
+            self.action_log.print_steps()
 

@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from pydantic import ValidationError
 from agents.utils.contracts import VehicleModel
 from agents.utils.response_models import VehicleRecommendationResponse
@@ -43,7 +43,7 @@ class VehicleModelRetriever:
         self,
         query: str,
         top_n: int = NUM_OF_CHUNKS_TO_RETRIEVE
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Dict[str, Any], Dict[str, str]]:
         """
         Search for vehicle models based on user needs using vector similarity.
         Uses Pydantic validation to ensure correct response format.
@@ -54,11 +54,9 @@ class VehicleModelRetriever:
             top_n: Number of vehicle models to retrieve
         
         Returns:
-            Dictionary with structure:
-            {
-                "vehicles": List of vehicle dictionaries with make, model, body_type, years, match_score, match_reason
-                "explanation": Overall reasoning for the selections
-            }
+            Tuple of:
+            - Dictionary with vehicles and explanation
+            - Dictionary with prompt and response for logging
         """
         rag_result = self.rag_retriever.query(query, top_k=top_n)
         
@@ -69,7 +67,13 @@ class VehicleModelRetriever:
             context=rag_result.get('chunks', [])
         )
         
-        return validated_response
+        # Return both the result and the details for logging
+        rag_details = {
+            "prompt": rag_result.get('prompt', ''),
+            "response": rag_result.get('response', '')
+        }
+        
+        return validated_response, rag_details
     
     def _validate_response(
         self,

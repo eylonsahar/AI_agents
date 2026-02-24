@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
 from typing import Dict, Any, List, Optional
 import json
 
+from agents.action_log import ActionLog
 from agents.search_agent.vehicle_model_retriever import VehicleModelRetriever
 from agents.search_agent.listings_retriever import ListingsRetriever
 from agents.search_agent.decision_agent import DecisionAgent
@@ -36,7 +37,8 @@ class SearchPipeline:
         pinecone_index,
         embedding_gateway: EmbeddingGateway,
         llm_gateway: LLMGateway,
-        listings_csv_path: Optional[str] = None
+        listings_csv_path: Optional[str] = None,
+        action_log: Optional[ActionLog] = None
     ):
         self.vehicle_retriever = VehicleModelRetriever(
             pinecone_index=pinecone_index,
@@ -46,6 +48,7 @@ class SearchPipeline:
         self.listings_retriever = ListingsRetriever(csv_path=listings_csv_path)
         self.decision_agent = DecisionAgent()
         self.llm_gateway = llm_gateway
+        self.action_log = action_log or ActionLog()
         
         # Store the recommended vehicle models from Stage 1
         self.recommended_models: Optional[VehicleModelsResult] = None
@@ -59,14 +62,20 @@ class SearchPipeline:
     def search(self, query: str, top_n_models: int = NUM_OF_CHUNKS_TO_RETRIEVE) -> PipelineResult:
 
         # Stage 1: Vehicle Model Retrieval
-        print(f"Stage 1: Retrieving vehicle models for query: '{query}'")
-        vehicle_models_result = self.vehicle_retriever.search_vehicle_models(
+        vehicle_models_result, rag_details = self.vehicle_retriever.search_vehicle_models(
             query=query,
             top_n=top_n_models
         )
         
+        # Log the LLM call for Stage 1
+        self.action_log.add_step(
+            module="SearchPipeline",
+            submodule="VehicleModelRetrieval",
+            prompt=rag_details.get("prompt", ""),
+            response=rag_details.get("response", "")
+        )
+        
         vehicles = vehicle_models_result.get('vehicles', [])
-        print(f"Retrieved {len(vehicles)} vehicle models")
         
         # Store the recommended models as a data model
         self.recommended_models = VehicleModelsResult.from_raw_result(
@@ -74,20 +83,15 @@ class SearchPipeline:
             raw_result=vehicle_models_result
         )
         
-        # Stage 2: Listings Retrieval
-        print("Stage 2: Finding listings for retrieved vehicle models")
-        
-        # Get listings as VehicleListing objects
+        # Stage 2: Listings Retrieval (no LLM - just CSV filtering)
         self.retrieved_listings = self.listings_retriever.retrieve_listings(
             vehicle_models_result=self.recommended_models,
             top_n=MAX_LISTINGS_PER_VEHICLE
         )
 
         total_listings = len(self.retrieved_listings)
-        print(f"Found {total_listings} total listings")
         
-        # Stage 3: Decision Ranking
-        print("Stage 3: Ranking listings with decision agent")
+        # Stage 3: Decision Ranking (no LLM - just scoring logic)
         
         # Get scored listings once and use for both ranking and recommendations
         scored_listings = self.decision_agent.get_scored_listings(
@@ -101,7 +105,8 @@ class SearchPipeline:
         return PipelineResult(
             query=query,
             vehicle_models_result=self.recommended_models,
-            scored_listings=scored_listings
+            scored_listings=scored_listings,
+            action_log=self.action_log
         )
 
 
@@ -162,4 +167,8 @@ if __name__ == "__main__":
     query = "reliable mini for young couple"
     result = pipeline.search(query)
     
+    # Print results
     print(json.dumps(result.to_dict(), indent=2))
+    
+    # Print action log
+    result.print_action_log()
