@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AItzik — AI Car Agent</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0d0f17;
+      --surface: #161923;
+      --surface2: #1e2233;
+      --border: #2a3050;
+      --accent: #6c63ff;
+      --accent2: #00d4ff;
+      --user-bg: #1b2a4a;
+      --agent-bg: #1a1e2e;
+      --text: #e4e8f7;
+      --muted: #8892b0;
+      --success: #50fa7b;
+      --error: #ff5555;
+      --warn: #ffb86c;
+      --radius: 14px;
+      --glow: 0 0 24px rgba(108, 99, 255, .35);
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, #0d0f17 0%, #161338 100%);
+    }
+
+    .logo {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: var(--glow);
+    }
+
+    .brand h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+    }
+
+    .brand p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      margin-left: auto;
+      width: 9px;
+      height: 9px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .4
+      }
+    }
+
+    /* ── Chat area ──────────────────────────────────────────────── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      scroll-behavior: smooth;
+    }
+
+    #chat::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    #chat::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #chat::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 9px;
+    }
+
+    /* ── Bubble ─────────────────────────────────────────────────── */
+    .bubble-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      max-width: 85%;
+      animation: fadeUp .3s ease;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    .bubble-wrap.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .bubble-wrap.agent {
+      align-self: flex-start;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .bubble-wrap.user .avatar {
+      background: linear-gradient(135deg, #2a4480, #1b3a6b);
+    }
+
+    .bubble-wrap.agent .avatar {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+
+    .bubble {
+      padding: 13px 17px;
+      border-radius: var(--radius);
+      line-height: 1.65;
+      font-size: 14.5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .bubble-wrap.user .bubble {
+      background: var(--user-bg);
+      border: 1px solid #2a3c6a;
+      border-bottom-right-radius: 4px;
+      color: #cdd8f7;
+    }
+
+    .bubble-wrap.agent .bubble {
+      background: var(--agent-bg);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble.error-bubble {
+      border-color: var(--error);
+      background: #1a0e16;
+    }
+
+    .bubble.warn-bubble {
+      border-color: var(--warn);
+      background: #1a1600;
+    }
+
+    /* ── Steps trace ────────────────────────────────────────────── */
+    .steps-container {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .steps-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 15px;
+      background: var(--surface2);
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      transition: background .2s;
+    }
+
+    .steps-header:hover {
+      background: #252a40;
+    }
+
+    .steps-toggle {
+      font-size: 12px;
+      transition: transform .25s;
+    }
+
+    .steps-toggle.open {
+      transform: rotate(180deg);
+    }
+
+    .steps-list {
+      display: none;
+      padding: 0 12px 12px;
+    }
+
+    .steps-list.open {
+      display: block;
+    }
+
+    .step-item {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 12.5px;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--surface2);
+      cursor: pointer;
+      user-select: none;
+      transition: background .2s;
+    }
+
+    .step-header:hover {
+      background: #2a2f48;
+    }
+
+    .step-num {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-module {
+      font-weight: 600;
+      color: var(--accent2);
+      flex: 1;
+    }
+
+    .step-chevron {
+      font-size: 11px;
+      color: var(--muted);
+      transition: transform .2s;
+    }
+
+    .step-chevron.open {
+      transform: rotate(180deg);
+    }
+
+    .step-body {
+      display: none;
+      padding: 10px 12px;
+      gap: 8px;
+      flex-direction: column;
+    }
+
+    .step-body.open {
+      display: flex;
+    }
+
+    .step-section label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .step-section pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 11.5px;
+      color: #b8c4e8;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    /* ── Typing indicator ───────────────────────────────────────── */
+    .typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 12px 16px;
+      background: var(--agent-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: fit-content;
+    }
+
+    .typing span {
+      width: 7px;
+      height: 7px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: typingDot 1.2s infinite;
+    }
+
+    .typing span:nth-child(2) {
+      animation-delay: .2s;
+    }
+
+    .typing span:nth-child(3) {
+      animation-delay: .4s;
+    }
+
+    @keyframes typingDot {
+
+      0%,
+      80%,
+      100% {
+        opacity: .3;
+        transform: scale(1)
+      }
+
+      40% {
+        opacity: 1;
+        transform: scale(1.2)
+      }
+    }
+
+    /* ── Input area ──────────────────────────────────────────────── */
+    .input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    /* Fields row */
+    .fields-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .field-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .field-group input {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-size: 13.5px;
+      font-family: 'Inter', sans-serif;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+
+    .field-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, .2);
+    }
+
+    .field-group input::placeholder {
+      color: var(--muted);
+    }
+
+    /* Prompt row */
+    .prompt-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #prompt {
+      flex: 1;
+      min-height: 52px;
+      max-height: 160px;
+      padding: 13px 15px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    #prompt:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, .2);
+    }
+
+    #prompt::placeholder {
+      color: var(--muted);
+    }
+
+    #run-btn {
+      padding: 14px 22px;
+      background: linear-gradient(135deg, var(--accent), #9b59ff);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s, box-shadow .2s;
+      box-shadow: var(--glow);
+      white-space: nowrap;
+    }
+
+    #run-btn:hover:not(:disabled) {
+      opacity: .9;
+      transform: translateY(-1px);
+      box-shadow: 0 0 32px rgba(108, 99, 255, .5);
+    }
+
+    #run-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    #run-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .hint {
+      margin-top: 7px;
+      font-size: 11.5px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .hint kbd {
+      display: inline-block;
+      padding: 1px 5px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 10.5px;
+    }
+
+    /* ── Welcome card ────────────────────────────────────────────── */
+    .welcome {
+      background: linear-gradient(135deg, var(--surface2) 0%, #1a1f3a 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 26px;
+      max-width: 520px;
+      align-self: center;
+    }
+
+    .welcome h2 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .welcome p {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .welcome ul {
+      margin: 12px 0 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 2;
+    }
+
+    .welcome li span {
+      color: var(--text);
+    }
+
+    /* ── Result card ─────────────────────────────────────────────── */
+    .result-card {
+      background: linear-gradient(135deg, var(--surface2) 0%, #1c2038 100%);
+      border: 1px solid #3a4060;
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 10px;
+    }
+
+    .result-card h3 {
+      font-size: 14px;
+      color: var(--accent2);
+      margin-bottom: 10px;
+    }
+
+    .result-text {
+      font-size: 13.5px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    .result-text a {
+      color: var(--accent2);
+      text-decoration: none;
+    }
+
+    .result-text a:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Misc ────────────────────────────────────────────────────── */
+    .suggested-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .chip {
+      padding: 6px 13px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12.5px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(108, 99, 255, .1);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header>
+      <div class="logo">🚗</div>
+      <div class="brand">
+        <h1>AItzik</h1>
+        <p>AI-Powered Car Agent</p>
+      </div>
+      <div class="status-dot" title="API online"></div>
+    </header>
+
+    <!-- Chat -->
+    <div id="chat">
+      <div class="welcome">
+        <h2>👋 Welcome to AItzik!</h2>
+        <p>I'll find your perfect used car, fill in all listing details by contacting sellers, and even schedule
+          viewings for you.</p>
+        <ul>
+          <li><span>Describe the car you want</span></li>
+          <li><span>Set your max budget & minimum year</span></li>
+          <li><span>I handle everything else automatically</span></li>
+        </ul>
+        <div class="suggested-prompts">
+          <div class="chip" onclick="fillExample('Reliable family SUV, prefer silver or white', '22000', '2018')">Family
+            SUV under $22k</div>
+          <div class="chip" onclick="fillExample('Fuel-efficient sedan for daily commute', '15000', '2016')">Eco sedan
+            under $15k</div>
+          <div class="chip"
+            onclick="fillExample('Pickup truck for occasional towing and outdoor use', '30000', '2017')">Pickup truck
+            under $30k</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="fields-row">
+        <div class="field-group">
+          <label>Max Budget (USD) *</label>
+          <input id="max-price" type="number" min="0" placeholder="e.g. 20000" />
+        </div>
+        <div class="field-group">
+          <label>Minimum Year *</label>
+          <input id="year-min" type="number" min="2000" max="2026" placeholder="e.g. 2018" />
+        </div>
+      </div>
+      <div class="prompt-row">
+        <textarea id="prompt" rows="2"
+          placeholder="Describe the car you're looking for… (e.g. reliable SUV for a family, prefer low mileage)"></textarea>
+        <button id="run-btn" onclick="runAgent()">🚀 Run Agent</button>
+      </div>
+      <p class="hint">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run &nbsp;·&nbsp; Budget &amp; year are required</p>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '';  // same origin; change to 'http://localhost:8000' if serving separately
+
+    const chat = document.getElementById('chat');
+    const promptEl = document.getElementById('prompt');
+    const runBtn = document.getElementById('run-btn');
+    const maxPriceEl = document.getElementById('max-price');
+    const yearMinEl = document.getElementById('year-min');
+
+    /* ── Keyboard shortcut ─────────────────────────────────────── */
+    promptEl.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runAgent();
+    });
+
+    /* ── Fill example chips ────────────────────────────────────── */
+    function fillExample(desc, price, year) {
+      promptEl.value = desc;
+      maxPriceEl.value = price;
+      yearMinEl.value = year;
+      promptEl.focus();
+    }
+
+    /* ── Append a chat bubble ──────────────────────────────────── */
+    function appendBubble(role, content, extraClass = '') {
+      const isUser = role === 'user';
+      const wrap = document.createElement('div');
+      wrap.className = `bubble-wrap ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = isUser ? '🧑' : '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${extraClass}`;
+
+      // Turn URLs into clickable links inside the bubble
+      bubble.innerHTML = linkifyAndEscape(content);
+
+      wrap.appendChild(avatar);
+      wrap.appendChild(bubble);
+      chat.appendChild(wrap);
+      scrollBottom();
+      return bubble;
+    }
+
+    /* ── Append typing indicator ───────────────────────────────── */
+    function appendTyping() {
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble-wrap agent';
+      wrap.id = 'typing-indicator';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = '🤖';
+
+      const typing = document.createElement('div');
+      typing.className = 'typing';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+
+      wrap.appendChild(avatar);
+      wrap.appendChild(typing);
+      chat.appendChild(wrap);
+      scrollBottom();
+    }
+
+    function removeTyping() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    /* ── Append agent result (card + steps accordion) ──────────── */
+    function appendAgentResult(responseText, steps) {
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble-wrap agent';
+      wrap.style.maxWidth = '100%';
+      wrap.style.width = '100%';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = '🤖';
+
+      const outer = document.createElement('div');
+      outer.style.flex = '1';
+
+      // Result card
+      const card = document.createElement('div');
+      card.className = 'result-card';
+      card.innerHTML = `<h3>🌟 Recommendations</h3><div class="result-text">${linkifyAndEscape(responseText)}</div>`;
+      outer.appendChild(card);
+
+      // Steps accordion
+      if (steps && steps.length > 0) {
+        outer.appendChild(buildStepsAccordion(steps));
+      }
+
+      wrap.appendChild(avatar);
+      wrap.appendChild(outer);
+      chat.appendChild(wrap);
+      scrollBottom();
+    }
+
+    /* ── Build accordion ───────────────────────────────────────── */
+    function buildStepsAccordion(steps) {
+      const container = document.createElement('div');
+      container.className = 'steps-container';
+
+      const header = document.createElement('div');
+      header.className = 'steps-header';
+      header.innerHTML = `
+      <span>🔍 Execution Trace &nbsp;<span style="color:var(--accent2)">${steps.length} steps</span></span>
+      <span class="steps-toggle" id="st-toggle">▼</span>`;
+      container.appendChild(header);
+
+      const list = document.createElement('div');
+      list.className = 'steps-list';
+      container.appendChild(list);
+
+      header.addEventListener('click', () => {
+        const open = list.classList.toggle('open');
+        header.querySelector('.steps-toggle').classList.toggle('open', open);
+      });
+
+      steps.forEach((step, i) => {
+        const item = document.createElement('div');
+        item.className = 'step-item';
+
+        const sh = document.createElement('div');
+        sh.className = 'step-header';
+        sh.innerHTML = `
+        <div class="step-num">${i + 1}</div>
+        <div class="step-module">${escapeHtml(step.module || 'Unknown')}</div>
+        <div class="step-chevron">▼</div>`;
+
+        const sb = document.createElement('div');
+        sb.className = 'step-body';
+
+        sb.innerHTML = `
+        <div class="step-section">
+          <label>Prompt</label>
+          <pre>${escapeHtml(formatStepField(step.prompt))}</pre>
+        </div>
+        <div class="step-section">
+          <label>Response</label>
+          <pre>${escapeHtml(formatStepField(step.response))}</pre>
+        </div>`;
+
+        sh.addEventListener('click', () => {
+          const open = sb.classList.toggle('open');
+          sh.querySelector('.step-chevron').classList.toggle('open', open);
+        });
+
+        item.appendChild(sh);
+        item.appendChild(sb);
+        list.appendChild(item);
+      });
+
+      return container;
+    }
+
+    /* ── Validation ────────────────────────────────────────────── */
+    function validate() {
+      const price = maxPriceEl.value.trim();
+      const year = yearMinEl.value.trim();
+      const desc = promptEl.value.trim();
+      const errors = [];
+
+      if (!desc) errors.push('Please describe the car you are looking for.');
+      if (!price) errors.push('Please enter your maximum budget.');
+      if (!year) errors.push('Please enter a minimum model year.');
+
+      const priceNum = parseFloat(price);
+      if (price && (isNaN(priceNum) || priceNum <= 0)) errors.push('Budget must be a positive number.');
+
+      const yearNum = parseInt(year);
+      if (year && (isNaN(yearNum) || yearNum < 2000 || yearNum > 2030))
+        errors.push('Year must be between 2000 and 2030.');
+
+      return errors;
+    }
+
+    /* ── Main run ──────────────────────────────────────────────── */
+    async function runAgent() {
+      const errors = validate();
+      if (errors.length) {
+        appendBubble('agent',
+          '⚠️ Please fix the following before running:\n\n' + errors.map(e => '• ' + e).join('\n'),
+          'warn-bubble'
+        );
+        return;
+      }
+
+      const desc = promptEl.value.trim();
+      const price = maxPriceEl.value.trim();
+      const year = yearMinEl.value.trim();
+
+      // Show user message
+      appendBubble('user', `${desc}\n\n💰 Max budget: $${price}   📅 Min year: ${year}`);
+
+      // Disable UI
+      runBtn.disabled = true;
+      promptEl.disabled = true;
+      appendTyping();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: desc,
+            max_price: price,
+            year_min: year,
+            description: desc,
+          }),
+        });
+
+        removeTyping();
+
+        if (!res.ok) {
+          const raw = await res.text();
+          appendBubble('agent',
+            `❌ Server error (HTTP ${res.status}):\n${raw}`,
+            'error-bubble'
+          );
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.status === 'error') {
+          const errMsg = data.error || 'Unknown error';
+          appendBubble('agent',
+            `❌ ${errMsg}\n\n💡 Try adjusting your description, budget, or year range.`,
+            'error-bubble'
+          );
+        } else {
+          appendAgentResult(data.response, data.steps);
+          // Clear inputs for next query
+          promptEl.value = '';
+        }
+
+      } catch (err) {
+        removeTyping();
+        appendBubble('agent',
+          `❌ Could not reach the agent server.\n\nMake sure the API is running at: ${API_BASE || window.location.origin}\n\n${err.message}`,
+          'error-bubble'
+        );
+      } finally {
+        runBtn.disabled = false;
+        promptEl.disabled = false;
+        promptEl.focus();
+      }
+    }
+
+    /* ── Helpers ───────────────────────────────────────────────── */
+    function scrollBottom() {
+      requestAnimationFrame(() => chat.scrollTop = chat.scrollHeight);
+    }
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') str = JSON.stringify(str, null, 2);
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function linkify(text) {
+      // Convert http/https URLs to <a> tags (after HTML escaping)
+      return text.replace(/(https?:\/\/[^\s&"<>]+)/g, url =>
+        `<a href="${url}" target="_blank" rel="noopener">${url}</a>`
+      );
+    }
+
+    function linkifyAndEscape(str) {
+      // Escape plain text but keep URLs clickable.
+      // Must NOT escape first — that breaks & in query strings.
+      if (typeof str !== 'string') str = JSON.stringify(str, null, 2);
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const parts = str.split(urlRegex);
+      return parts.map((part, i) => {
+        if (i % 2 === 1) {
+          // URL part — escape the display text but keep raw URL in href
+          return `<a href="${part}" target="_blank" rel="noopener">${escapeHtml(part)}</a>`;
+        }
+        return escapeHtml(part);
+      }).join('');
+    }
+
+    function formatStepField(val) {
+      if (!val) return '(empty)';
+      if (typeof val === 'object') return JSON.stringify(val, null, 2);
+      const s = String(val);
+      return s.length > 2000 ? s.slice(0, 2000) + '\n… (truncated)' : s;
+    }
+  </script>
+</body>
+
+</html>

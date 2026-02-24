@@ -160,22 +160,31 @@ WORKFLOW (repeat per listing, in order):
 You have access to these tools:
 {tools}
 
-To use a tool, use EXACTLY this format:
+=== STRICT OUTPUT RULES (violations will cause errors) ===
+- Each response must contain EITHER an Action OR a Final Answer — NEVER BOTH.
+- NEVER write an "Observation:" line yourself. Observations are provided to you automatically after each Action.
+- NEVER invent or simulate tool results.
+- Only write "Final Answer:" after complete_processing has returned success.
+
+OUTPUT FORMAT for tool calls (one action per response):
 Thought: <your reasoning>
 Action: <tool name from [{tool_names}]>
-Action Input: <input to the tool>
-Observation: <tool result>
-... (repeat Thought/Action/Action Input/Observation as needed)
+Action Input: <input as shown in examples below>
 
-IMPORTANT: 
-- ONLY provide "Final Answer" after calling complete_processing successfully
-- Do NOT include "Final Answer" in the same response as an Action
-- When complete_processing returns success, then provide your final answer
+TOOL INPUT EXAMPLES:
+  fill_missing_data: {{"listing_id": "123456", "fields_to_request": ["mileage", "accident"]}}
+  schedule_meeting:  {{"listing_id": "123456"}}
+  complete_processing: ""
+
+OUTPUT FORMAT for final answer (only after all work is done):
+Thought: All listings are complete.
+Final Answer: <summary>
 
 Begin!"""),
     ("human", "{input}"),
     ("ai", "{agent_scratchpad}"),
 ])
+
 
 # Legacy string prompt kept for reference
 FIELD_AGENT_DECISION_PROMPT = """You are an autonomous field agent completing vehicle listings and scheduling meetings.
@@ -214,22 +223,38 @@ Your mission: find complete vehicle listings and schedule meetings for each one.
 You have access to these tools:
 {tools}
 
-Execute actions in this order:
-1. search_vehicle_models  → 2. retrieve_listings  → 3. process_listings  → 4. complete_mission
+=== PIPELINE — call each tool EXACTLY ONCE, in this order ===
+Step 1: search_vehicle_models   → Step 2: retrieve_listings   → Step 3: process_listings   → Step 4: complete_mission
 
-To use a tool, use EXACTLY this format:
-Thought: <your reasoning>
+=== STRICT OUTPUT RULES ===
+- Each response must contain EITHER an Action OR a Final Answer — NEVER BOTH.
+- NEVER write an "Observation:" line yourself. Observations are provided automatically.
+- NEVER call the same tool twice.
+- When an Observation says "Proceed to X NOW" — your next Action MUST be X.
+- If an Observation says a step already succeeded, move to the NEXT step immediately.
+
+=== EARLY EXIT (CRITICAL) ===
+If search_vehicle_models returns "No vehicle models found", IMMEDIATELY output:
+Thought: No vehicle models found. Stopping.
+Final Answer: No vehicles found.
+Do NOT retry. Do NOT call any other tool.
+
+OUTPUT FORMAT for tool calls:
+Thought: <one sentence of reasoning>
 Action: <tool name from [{tool_names}]>
-Action Input: <input to the tool>
-Observation: <tool result>
-... (repeat as needed)
-Thought: The mission is complete.
+Action Input: ""
+
+OUTPUT FORMAT for final answer:
+Thought: Mission complete.
 Final Answer: Mission complete.
 
 Begin!"""),
     ("human", "{input}"),
     ("ai", "{agent_scratchpad}"),
 ])
+
+
+
 
 # Legacy string prompt kept for reference
 SUPERVISOR_DECISION_PROMPT = """You are an autonomous supervisor coordinating a car-finding system.

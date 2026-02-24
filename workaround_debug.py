@@ -15,7 +15,8 @@ def main():
     ads_list = {
         "results": [
             {
-                "vehicle": {"make": "Toyota", "model": "Camry"},
+                "vehicl "
+                "e": {"make": "Toyota", "model": "Camry"},
                 "listings": [
                     {
                         "id": "1001",

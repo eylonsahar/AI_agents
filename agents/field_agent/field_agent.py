@@ -36,38 +36,82 @@ OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 
 # ============================================================================
+# Thought-splitting helper
+# ============================================================================
+
+import re as _re
+
+def _split_thought(text: str):
+    """Split a ReAct response into (thought_text, action_text)."""
+    m = _re.search(r'(?m)^(Action:|Final Answer:)', text)
+    if m:
+        thought = text[:m.start()].strip()
+        action  = text[m.start():].strip()
+    else:
+        thought = text.strip()
+        action  = ""
+    thought = _re.sub(r'^Thought:\s*', '', thought, flags=_re.IGNORECASE).strip()
+    return thought, action
+
+
+# ============================================================================
 # ActionLog Callback Handler
 # ============================================================================
 
 class FieldAgentLogCallback(BaseCallbackHandler):
     """
-    Intercepts every LLM call made by the AgentExecutor and appends a step
-    to the shared ActionLog with the required schema:
-        {module, submodule, prompt, response}
+    Logs each FieldAgent ReAct step to the shared ActionLog.
+
+    Uses on_agent_action and on_agent_finish — fired at the AgentExecutor
+    level, guaranteed to contain the full Thought text in their .log field.
     """
 
     def __init__(self, action_log: ActionLog):
         super().__init__()
         self._log = action_log
-        self._last_prompt: str = ""
 
-    def on_llm_start(self, serialized, prompts: list, **kwargs):
-        """Capture the prompt text before the LLM call."""
-        self._last_prompt = "\n".join(prompts) if prompts else ""
+    def on_agent_action(self, action, **kwargs):
+        """Fired before each tool call. action.log = 'Thought: ...\nAction: ...'"""
+        log_text = getattr(action, "log", "") or ""
+        thought, action_part = _split_thought(log_text)
 
-    def on_llm_end(self, response: LLMResult, **kwargs):
-        """After the LLM responds, log prompt + response to ActionLog."""
-        try:
-            response_text = response.generations[0][0].text
-        except (IndexError, AttributeError):
-            response_text = str(response)
+        if thought:
+            self._log.add_step(
+                module="FieldAgent",
+                submodule="Thought",
+                prompt="",
+                response=thought,
+            )
 
-        self._log.add_step(
-            module="FieldAgent",
-            submodule="DecisionMaking",
-            prompt=self._last_prompt,
-            response=response_text,
-        )
+        if action_part:
+            self._log.add_step(
+                module="FieldAgent",
+                submodule="DecisionMaking",
+                prompt="",
+                response=action_part,
+            )
+
+    def on_agent_finish(self, finish, **kwargs):
+        """Fired when the agent outputs Final Answer."""
+        log_text = getattr(finish, "log", "") or ""
+        thought, _ = _split_thought(log_text)
+        final = finish.return_values.get("output", "")
+
+        if thought:
+            self._log.add_step(
+                module="FieldAgent",
+                submodule="Thought",
+                prompt="",
+                response=thought,
+            )
+        if final:
+            self._log.add_step(
+                module="FieldAgent",
+                submodule="FinalAnswer",
+                prompt="",
+                response=final,
+            )
+
 
 
 # ============================================================================
@@ -115,7 +159,11 @@ class FieldAgent:
             tools=tools,
             max_iterations=max_iterations,
             verbose=True,
-            handle_parsing_errors=False,  # Disable error handling to see the actual issue
+            handle_parsing_errors=(
+                "Your output contained both an Action and a Final Answer, or an Observation line. "
+                "Output ONLY one of: (a) Thought + Action + Action Input, OR (b) Thought + Final Answer. "
+                "Never write Observation lines yourself. Try again."
+            ),
             callbacks=[FieldAgentLogCallback(action_log)],
         )
 
@@ -221,11 +269,11 @@ class FieldAgent:
         seller = MockSeller(query_from_field_agent=query)
         raw_response, _ = seller.get_missing_data()
 
-        # Log the MockSeller LLM call
+        # Log the Seller LLM call — response only, no internal prompt
         self.action_log.add_step(
             module="FieldAgent",
-            submodule="MockSeller/GetData",
-            prompt=f"{seller.info_system_prompt}\n\nAgent Query: {query}",
+            submodule="Seller/GetData",
+            prompt=f"Requested fields for listing {listing_id}: {', '.join(fields_to_request)}",
             response=raw_response,
         )
 
@@ -304,30 +352,41 @@ class FieldAgent:
     def _get_meeting_slots(self, listing: dict) -> List[Dict[str, str]]:
         """Ask the mock seller for available slots, then build calendar links."""
         today = datetime.now()
-        two_weeks_later = today + timedelta(days=MEETING_TIMEFRAME)
+        tomorrow = today + timedelta(days=1)
+        two_weeks_later = tomorrow + timedelta(days=MEETING_TIMEFRAME)
 
         query = (
             f"Generate exactly {NUM_AVAILABLE_DATES} available slots.\n"
-            f"Date Window: {today.strftime('%Y-%m-%d')} to {two_weeks_later.strftime('%Y-%m-%d')}.\n"
+            f"Date Window: {tomorrow.strftime('%Y-%m-%d')} to {two_weeks_later.strftime('%Y-%m-%d')}.\n"
             "Days: Sunday to Friday ONLY.\n"
             "Hours: 10:00 to 19:00.\n"
             "Minutes: :00, :15, :30, or :45.\n"
-            "Return ONLY the list of slots, one per line."
+            "Return ONLY the list of slots, one per line, in format: YYYY-MM-DD HH:MM"
         )
 
         seller = MockSeller(query_from_field_agent=query)
         available_slots, _ = seller.get_available_dates()
 
-        # Log the scheduling LLM call
+        # Log the Seller scheduling call — response only, no internal prompt
         self.action_log.add_step(
             module="FieldAgent",
-            submodule="MockSeller/Scheduling",
-            prompt=seller.sched_system_prompt + query,
+            submodule="Seller/Scheduling",
+            prompt=f"Requested {NUM_AVAILABLE_DATES} available slots from {tomorrow.strftime('%Y-%m-%d')} to {two_weeks_later.strftime('%Y-%m-%d')}",
             response="\n".join(available_slots),
         )
 
+
+        # Filter out any slots that are in the past (LLM sometimes returns today)
+        now = datetime.now()
         slot_links = []
         for slot in available_slots:
+            slot = slot.strip()
+            try:
+                slot_dt = datetime.strptime(slot, "%Y-%m-%d %H:%M")
+            except ValueError:
+                continue
+            if slot_dt <= now:
+                continue
             url = self._create_calendar_link(slot, listing)
             slot_links.append({"slot": slot, "url": url})
 
