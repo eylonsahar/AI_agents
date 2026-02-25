@@ -78,24 +78,15 @@ class SupervisorLogCallback(BaseCallbackHandler):
         self._log = action_log
 
     def on_agent_action(self, action, **kwargs):
-        """Fired before each tool call. action.log = 'Thought: ...\nAction: ...'"""
+        """Fired before each tool call — log only the Thought."""
         log_text = getattr(action, "log", "") or ""
-        thought, action_part = _split_thought(log_text)
-
+        thought, _ = _split_thought(log_text)
         if thought:
             self._log.add_step(
                 module="Supervisor",
                 submodule="Thought",
                 prompt="",
                 response=thought,
-            )
-
-        if action_part:
-            self._log.add_step(
-                module="Supervisor",
-                submodule="DecisionMaking",
-                prompt="",
-                response=action_part,
             )
 
     def on_agent_finish(self, finish, **kwargs):
