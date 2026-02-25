@@ -216,7 +216,7 @@ class AgentSupervisor:
         print(f"\n🔍 Searching vehicle models via RAG for: '{query}'")
         try:
             retriever = self._get_vehicle_retriever()
-            result = retriever.search_vehicle_models(query=query)
+            result, _rag_details = retriever.search_vehicle_models(query=query)
             self.vehicle_models = result.get("vehicles", [])
 
             # Log full vehicle model details in the trace

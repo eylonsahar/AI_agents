@@ -212,7 +212,7 @@
       background: #1a1600;
     }
 
-    /* ── Steps trace ────────────────────────────────────────────── */
+    /* ── Steps trace ─────────────────────────────────────────────────── */
     .steps-container {
       margin-top: 14px;
       border: 1px solid var(--border);
@@ -249,99 +249,186 @@
 
     .steps-list {
       display: none;
-      padding: 0 12px 12px;
+      padding: 16px 16px 8px;
     }
 
     .steps-list.open {
       display: block;
     }
 
-    .step-item {
-      margin-top: 10px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      font-size: 12.5px;
+    /* ── Timeline ───────────────────────────────────────────────── */
+    .timeline {
+      position: relative;
+      padding-left: 38px;
     }
 
-    .step-header {
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent), var(--accent2));
+      opacity: .35;
+      border-radius: 2px;
+    }
+
+    .tl-step {
+      position: relative;
+      margin-bottom: 14px;
+    }
+
+    .tl-step:last-child {
+      margin-bottom: 0;
+    }
+
+    /* dot on the timeline */
+    .tl-dot {
+      position: absolute;
+      left: -29px;
+      top: 10px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(0, 0, 0, .4);
+    }
+
+    .tl-dot.thought {
+      background: #7c3aed;
+    }
+
+    .tl-dot.decision {
+      background: #2563eb;
+    }
+
+    .tl-dot.search {
+      background: #059669;
+    }
+
+    .tl-dot.seller {
+      background: #d97706;
+    }
+
+    .tl-dot.final {
+      background: #db2777;
+    }
+
+    .tl-dot.other {
+      background: #4b5563;
+    }
+
+    /* collapsed card header */
+    .tl-header {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
       background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
       cursor: pointer;
       user-select: none;
-      transition: background .2s;
+      transition: background .18s, border-color .18s;
     }
 
-    .step-header:hover {
-      background: #2a2f48;
+    .tl-header:hover {
+      background: #252a40;
+      border-color: var(--accent);
     }
 
-    .step-num {
-      background: var(--accent);
-      color: #fff;
+    .tl-num {
       font-size: 10px;
       font-weight: 700;
-      width: 20px;
-      height: 20px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      color: var(--muted);
+      min-width: 18px;
     }
 
-    .step-module {
+    .tl-label {
+      flex: 1;
+      font-size: 12.5px;
       font-weight: 600;
       color: var(--accent2);
-      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .step-chevron {
-      font-size: 11px;
+    .tl-preview {
+      font-size: 11.5px;
+      color: var(--muted);
+      max-width: 240px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tl-chevron {
+      font-size: 10px;
       color: var(--muted);
       transition: transform .2s;
     }
 
-    .step-chevron.open {
+    .tl-chevron.open {
       transform: rotate(180deg);
     }
 
-    .step-body {
+    /* expanded body: blog-style */
+    .tl-body {
       display: none;
-      padding: 10px 12px;
-      gap: 8px;
-      flex-direction: column;
+      margin-top: 6px;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 12.5px;
+      line-height: 1.7;
     }
 
-    .step-body.open {
-      display: flex;
-    }
-
-    .step-section label {
+    .tl-body.open {
       display: block;
-      font-size: 10.5px;
-      font-weight: 600;
+    }
+
+    .blog-section {
+      margin-bottom: 10px;
+    }
+
+    .blog-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .blog-label {
+      font-size: 10px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: .6px;
+      letter-spacing: .8px;
       color: var(--muted);
       margin-bottom: 4px;
     }
 
-    .step-section pre {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-family: 'Courier New', monospace;
-      font-size: 11.5px;
-      color: #b8c4e8;
+    .blog-text {
+      color: #c8d4f0;
       white-space: pre-wrap;
       word-break: break-word;
-      max-height: 200px;
-      overflow-y: auto;
+    }
+
+    .blog-text.thought-text {
+      font-style: italic;
+      color: #c4b5fd;
+      /* soft purple for thoughts */
+    }
+
+    .blog-text.empty {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 11px;
     }
 
     /* ── Typing indicator ───────────────────────────────────────── */
@@ -762,7 +849,21 @@
       scrollBottom();
     }
 
-    /* ── Build accordion ───────────────────────────────────────── */
+    /* ── Build blog-style timeline trace ───────────────────────── */
+    function stepKind(module) {
+      const m = (module || '').toLowerCase();
+      if (m.includes('thought')) return 'thought';
+      if (m.includes('final')) return 'final';
+      if (m.includes('decision')) return 'decision';
+      if (m.includes('search') || m.includes('retriever') || m.includes('pipeline')) return 'search';
+      if (m.includes('seller')) return 'seller';
+      return 'other';
+    }
+
+    function stepIcon(kind) {
+      return { thought: '💭', decision: '⚙️', search: '🔍', seller: '🤝', final: '✅', other: '📌' }[kind];
+    }
+
     function buildStepsAccordion(steps) {
       const container = document.createElement('div');
       container.className = 'steps-container';
@@ -770,8 +871,8 @@
       const header = document.createElement('div');
       header.className = 'steps-header';
       header.innerHTML = `
-      <span>🔍 Execution Trace &nbsp;<span style="color:var(--accent2)">${steps.length} steps</span></span>
-      <span class="steps-toggle" id="st-toggle">▼</span>`;
+        <span>🔍 Execution Trace &nbsp;<span style="color:var(--accent2)">${steps.length} steps</span></span>
+        <span class="steps-toggle">▼</span>`;
       container.appendChild(header);
 
       const list = document.createElement('div');
@@ -783,42 +884,77 @@
         header.querySelector('.steps-toggle').classList.toggle('open', open);
       });
 
+      const timeline = document.createElement('div');
+      timeline.className = 'timeline';
+      list.appendChild(timeline);
+
       steps.forEach((step, i) => {
-        const item = document.createElement('div');
-        item.className = 'step-item';
+        const kind = stepKind(step.module);
+        const icon = stepIcon(kind);
+        const label = step.module || 'Unknown';
+        const isThought = kind === 'thought';
 
-        const sh = document.createElement('div');
-        sh.className = 'step-header';
-        sh.innerHTML = `
-        <div class="step-num">${i + 1}</div>
-        <div class="step-module">${escapeHtml(step.module || 'Unknown')}</div>
-        <div class="step-chevron">▼</div>`;
+        // Preview text (first line of response)
+        const prevText = (step.response || '').split('\n')[0].slice(0, 60);
 
-        const sb = document.createElement('div');
-        sb.className = 'step-body';
+        const tlStep = document.createElement('div');
+        tlStep.className = 'tl-step';
 
-        sb.innerHTML = `
-        <div class="step-section">
-          <label>Prompt</label>
-          <pre>${escapeHtml(formatStepField(step.prompt))}</pre>
-        </div>
-        <div class="step-section">
-          <label>Response</label>
-          <pre>${escapeHtml(formatStepField(step.response))}</pre>
-        </div>`;
+        // Timeline dot
+        const dot = document.createElement('div');
+        dot.className = `tl-dot ${kind}`;
+        dot.textContent = icon;
+        tlStep.appendChild(dot);
 
-        sh.addEventListener('click', () => {
-          const open = sb.classList.toggle('open');
-          sh.querySelector('.step-chevron').classList.toggle('open', open);
+        // Collapsed header
+        const hdr = document.createElement('div');
+        hdr.className = 'tl-header';
+        hdr.innerHTML = `
+          <span class="tl-num">${i + 1}</span>
+          <span class="tl-label">${escapeHtml(label)}</span>
+          ${prevText ? `<span class="tl-preview">${escapeHtml(prevText)}</span>` : ''}
+          <span class="tl-chevron">▼</span>`;
+        tlStep.appendChild(hdr);
+
+        // Expanded body — blog style
+        const body = document.createElement('div');
+        body.className = 'tl-body';
+
+        // Thought steps: only show the response as thought text
+        if (isThought) {
+          body.innerHTML = `
+            <div class="blog-section">
+              <div class="blog-label">💭 Thought</div>
+              <div class="blog-text thought-text">${escapeHtml(formatStepField(step.response))}</div>
+            </div>`;
+        } else {
+          const hasPrompt = step.prompt && step.prompt.trim();
+          const hasResponse = step.response && step.response.trim();
+          body.innerHTML = `
+            ${hasPrompt ? `
+            <div class="blog-section">
+              <div class="blog-label">📤 Prompt</div>
+              <div class="blog-text">${escapeHtml(formatStepField(step.prompt))}</div>
+            </div>` : ''}
+            <div class="blog-section">
+              <div class="blog-label">📥 Response</div>
+              <div class="blog-text ${hasResponse ? '' : 'empty'}">${escapeHtml(formatStepField(step.response))}</div>
+            </div>`;
+        }
+
+        tlStep.appendChild(body);
+
+        hdr.addEventListener('click', () => {
+          const open = body.classList.toggle('open');
+          hdr.querySelector('.tl-chevron').classList.toggle('open', open);
         });
 
-        item.appendChild(sh);
-        item.appendChild(sb);
-        list.appendChild(item);
+        timeline.appendChild(tlStep);
       });
 
       return container;
     }
+
 
     /* ── Validation ────────────────────────────────────────────── */
     function validate() {
