@@ -21,3 +21,4 @@ __pycache__/
 # Data
 data/
 rag/data/
+!rag/data/cars_for_sale.csv
