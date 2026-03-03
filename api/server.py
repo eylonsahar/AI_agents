@@ -256,7 +256,7 @@ def agent_info():
             "Help users find the best used vehicles on the market by automating: "
             "(1) semantic vehicle-model search via RAG + Pinecone, "
             "(2) live listings retrieval from a structured CSV database, "
-            "(3) data enrichment via a Field Agent that interviews mock sellers, and "
+            "(3) data enrichment via a Field Agent that interviews sellers, and "
             "(4) meeting scheduling with Google Calendar deep links."
         ),
         "prompt_template": {
