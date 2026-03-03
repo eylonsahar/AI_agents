@@ -15,22 +15,21 @@ User Request
 ┌─────────────────────────────────────────────────────┐
 │                  Supervisor Agent                    │
 │  (LangChain ReAct · orchestrates the full pipeline) │
-└───┬──────────────────────────────┬──────────────────┘
-    │                              │
-    ▼                              ▼
-┌───────────────────┐   ┌──────────────────────────────┐
-│   Search Pipeline │   │        Field Agent            │
-│                   │   │  (LangChain ReAct · per car)  │
-│ 1. RAG / Pinecone │   │                               │
-│    Vehicle Model  │   │  • Contacts seller to fill    │
-│    Retriever      │   │    missing fields (mileage,   │
-│                   │   │    accident, color, etc.)     │
-│ 2. CSV Listings   │   │                               │
-│    Retriever      │   │  • Schedules 2 Google Calendar│
-│                   │   │    viewing slots per listing  │
-│ 3. Decision Agent │   │                               │
-│    (score & rank) │   └──────────────────────────────┘
-└───────────────────┘
+└───┬──────────────────┬───────────────┬──────────────┘
+    │                  │               │
+    ▼                  ▼               ▼
+┌──────────────┐  ┌──────────────────────────┐  ┌──────────────────────────┐
+│Search Pipeline│  │   Decision-Making Agent  │  │       Field Agent        │
+│               │  │                          │  │  (LangChain ReAct ·      │
+│ 1. RAG /      │  │  • Scores & ranks        │  │   per-listing enrichment)│
+│    Pinecone   │  │    candidate listings    │  │                          │
+│    Vehicle    │  │    before & after        │  │  • Contacts seller to    │
+│    Retriever  │  │    field enrichment      │  │    fill missing fields   │
+│               │  │                          │  │    (mileage, accident…)  │
+│ 2. CSV        │  │  • Re-ranks fully        │  │                          │
+│    Listings   │  │    enriched listings     │  │  • Schedules 2 Google    │
+│    Retriever  │  │    for final output      │  │    Calendar viewing slots│
+└──────────────┘  └──────────────────────────┘  └──────────────────────────┘
 ```
 
 ---
