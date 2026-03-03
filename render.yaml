@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: aitzik-car-agent
+    runtime: python
+    region: oregon
+    plan: free
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.server:app --host 0.0.0.0 --port $PORT
+
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false          # Set manually in Render dashboard
+      - key: PINECONE_API_KEY
+        sync: false          # Set manually in Render dashboard
+      - key: PINECONE_INDEX_NAME
+        value: filtered-vehicles-info
