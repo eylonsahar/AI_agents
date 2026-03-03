@@ -25,7 +25,7 @@ logging.getLogger("langchain.agents").setLevel(logging.ERROR)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -361,130 +361,180 @@ def model_architecture():
         filename="model_architecture.png",
     )
 
-
-@app.post("/api/execute", response_model=ExecuteResponse)
-def execute(body: ExecuteRequest):
+@app.post("/api/execute")
+def execute(body: ExecuteRequest, stream: bool = False):
     """
-    Run the full multi-agent pipeline with the given prompt.
+    Run the full multi-agent pipeline.
 
-    The body may include:
-    - ``prompt``      (required) — free-text request
-    - ``max_price``   (optional) — if not provided, extracted from prompt
-    - ``year_min``    (optional) — if not provided, extracted from prompt
-    - ``description`` (optional) — additional preferences
+    ?stream=true  → NDJSON: processing line, heartbeat(s), then final result  (used by UI)
+    ?stream=false → single blocking JSON response                              (default, for curl)
     """
-    try:
+    def _stream():
+        import json as _json
+
+        # ── Fast validation ───────────────────────────────────────────────
         api_key = os.environ.get("OPENAI_API_KEY", "")
         if not api_key:
-            return ExecuteResponse(
-                status="error",
-                error="OPENAI_API_KEY not configured on the server.",
-                response=None,
-                steps=[],
-            )
+            yield _json.dumps({"status": "error", "error": "OPENAI_API_KEY not configured.",
+                                "response": None, "steps": []}) + "\n"
+            return
 
-        # ── Parse requirements from body or fallback to prompt ────────────
-        prompt_text = body.prompt.strip()
+        prompt_text = (body.prompt or "").strip()
         if not prompt_text:
-            return ExecuteResponse(
-                status="error",
-                error="Prompt cannot be empty.",
-                response=None,
-                steps=[],
-            )
+            yield _json.dumps({"status": "error", "error": "Prompt cannot be empty.",
+                                "response": None, "steps": []}) + "\n"
+            return
 
-        max_price = body.max_price or _extract_price(prompt_text)
-        year_min = body.year_min or _extract_year(prompt_text)
+        max_price   = body.max_price   or _extract_price(prompt_text)
+        year_min    = body.year_min    or _extract_year(prompt_text)
         description = body.description or prompt_text
 
         if not max_price:
-            return ExecuteResponse(
-                status="error",
-                error=(
-                    "Could not determine your maximum price. "
-                    "Please include a budget, e.g. 'max price $20000', "
-                    "or use the max_price field."
-                ),
-                response=None,
-                steps=[],
-            )
+            yield _json.dumps({"status": "error",
+                                "error": ("Could not determine your maximum price. "
+                                          "Please include a budget, e.g. 'max price $20000', "
+                                          "or use the max_price field."),
+                                "response": None, "steps": []}) + "\n"
+            return
 
         if not year_min:
-            return ExecuteResponse(
-                status="error",
-                error=(
-                    "Could not determine a minimum year for the vehicle. "
-                    "Please include a year, e.g. 'from 2018 onwards', "
-                    "or use the year_min field."
-                ),
-                response=None,
-                steps=[],
-            )
+            yield _json.dumps({"status": "error",
+                                "error": ("Could not determine a minimum year. "
+                                          "Please include a year, e.g. 'from 2018 onwards', "
+                                          "or use the year_min field."),
+                                "response": None, "steps": []}) + "\n"
+            return
 
-        requirements = {
-            "max_price": max_price,
-            "year_min": year_min,
-            "description": description,
-        }
-
-        # ── Intent check: reject non-car requests immediately ──────────────
+        # ── Intent check (fast LLM call) ──────────────────────────────────
         llm_gateway = LLMGateway.get_instance(api_key=api_key)
         if not _check_is_car_search(prompt_text, description, llm_gateway):
-            return ExecuteResponse(
-                status="error",
-                error=(
-                    "Your request doesn't seem to be about finding a car. "
-                    "Please describe the vehicle you're looking for, e.g. "
-                    "'reliable family SUV under $20,000 from 2018 or newer'."
-                ),
-                response=None,
-                steps=[],
+            yield _json.dumps({"status": "error",
+                                "error": ("Your request doesn't seem to be about finding a car. "
+                                          "Please describe the vehicle you're looking for, e.g. "
+                                          "'reliable family SUV under $20,000 from 2018 or newer'."),
+                                "response": None, "steps": []}) + "\n"
+            return
+
+        # ── Emit acknowledgement immediately ──────────────────────────────
+        yield _json.dumps({
+            "status": "processing",
+            "message": (
+                "✅ Request received! Your AI car agent is now searching for the best "
+                "listings, contacting sellers, and scheduling viewings. "
+                "This usually takes 2–5 minutes — we'll return the full results once ready."
             )
+        }) + "\n"
 
-        # ── Run the agent ─────────────────────────────────────────────────
-        supervisor = AgentSupervisor(
-            llm_gateway=llm_gateway,
-            vehicle_retriever=_vehicle_retriever,  # pre-built at startup
-        )
-        result = supervisor.run_headless(requirements=requirements)
+        # ── Run agent in background thread + send heartbeats every 30s ──
+        import threading as _threading
 
-        # ── Handle no-vehicles-found gracefully ────────────────────────────
+        result_holder: dict = {}
+
+        def _run():
+            try:
+                requirements = {"max_price": max_price, "year_min": year_min,
+                                 "description": description}
+                sup = AgentSupervisor(
+                    llm_gateway=llm_gateway,
+                    vehicle_retriever=_vehicle_retriever,
+                )
+                result_holder["result"] = sup.run_headless(requirements=requirements)
+            except Exception as exc:
+                traceback.print_exc()
+                result_holder["error"] = str(exc)
+
+        thread = _threading.Thread(target=_run, daemon=True)
+        thread.start()
+
+        # Heartbeat every 30 s keeps the TCP connection alive while we wait
+        while thread.is_alive():
+            thread.join(timeout=30)
+            if thread.is_alive():
+                yield _json.dumps({"status": "heartbeat"}) + "\n"
+
+        # ── Agent finished — emit result ───────────────────────────────
+        if "error" in result_holder:
+            yield _json.dumps({"status": "error", "error": result_holder["error"],
+                                "response": None, "steps": []}) + "\n"
+            return
+
+        result = result_holder.get("result", {})
         if result.get("error") == "no_vehicles_found":
-            query = requirements.get("description", prompt_text)
-            return ExecuteResponse(
-                status="error",
-                error=(
-                    f"I couldn't find any vehicles matching your search: '{query}'. "
-                    "This may be because the description doesn't match cars in our database. "
-                    "Try different keywords — for example: 'SUV', 'sedan', 'pickup truck', "
-                    "or specific makes like 'Toyota', 'Honda', 'Ford'."
-                ),
-                response=None,
-                steps=_normalize_steps(result.get("steps", [])),
-            )
+            query = description or prompt_text
+            yield _json.dumps({
+                "status": "error",
+                "error": (f"I couldn't find any vehicles matching: '{query}'. "
+                          "Try different keywords — e.g. 'SUV', 'sedan', 'pickup truck', "
+                          "or specific makes like 'Toyota', 'Honda', 'Ford'."),
+                "response": None,
+                "steps": _normalize_steps(result.get("steps", [])),
+            }) + "\n"
+            return
 
-        raw_steps = result.get("steps", [])
-        results = result.get("results", [])
+        yield _json.dumps({
+            "status":   "ok",
+            "error":    None,
+            "response": _format_results_as_text(result.get("results", [])),
+            "steps":    _normalize_steps(result.get("steps", [])),
+        }) + "\n"
 
-        response_text = _format_results_as_text(results)
-        normalized_steps = _normalize_steps(raw_steps)
+    return StreamingResponse(_stream(), media_type="application/x-ndjson") \
+        if stream else JSONResponse(_run_blocking(
+            body, _extract_price, _extract_year,
+            LLMGateway, _check_is_car_search, AgentSupervisor,
+            _vehicle_retriever, _normalize_steps, _format_results_as_text, traceback,
+        ))
 
-        return ExecuteResponse(
-            status="ok",
-            error=None,
-            response=response_text,
-            steps=normalized_steps,
-        )
 
+def _run_blocking(body, _extract_price, _extract_year,
+                   LLMGateway, _check_is_car_search, AgentSupervisor,
+                   _vehicle_retriever, _normalize_steps, _format_results_as_text, traceback):
+    """Blocking version of the pipeline — returns a plain dict for JSONResponse."""
+    import json as _json
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        return {"status": "error", "error": "OPENAI_API_KEY not configured.", "response": None, "steps": []}
+
+    prompt_text = (body.prompt or "").strip()
+    if not prompt_text:
+        return {"status": "error", "error": "Prompt cannot be empty.", "response": None, "steps": []}
+
+    max_price   = body.max_price   or _extract_price(prompt_text)
+    year_min    = body.year_min    or _extract_year(prompt_text)
+    description = body.description or prompt_text
+
+    if not max_price:
+        return {"status": "error", "error": ("Could not determine your maximum price. "
+                "Please include a budget, e.g. 'max price $20000'."), "response": None, "steps": []}
+    if not year_min:
+        return {"status": "error", "error": ("Could not determine a minimum year. "
+                "Please include a year, e.g. 'from 2018 onwards'."), "response": None, "steps": []}
+
+    llm_gateway = LLMGateway.get_instance(api_key=api_key)
+    if not _check_is_car_search(prompt_text, description, llm_gateway):
+        return {"status": "error",
+                "error": ("Your request doesn't seem to be about finding a car. "
+                          "Please describe the vehicle you're looking for."),
+                "response": None, "steps": []}
+
+    try:
+        sup    = AgentSupervisor(llm_gateway=llm_gateway, vehicle_retriever=_vehicle_retriever)
+        result = sup.run_headless(requirements={"max_price": max_price, "year_min": year_min,
+                                                "description": description})
+        if result.get("error") == "no_vehicles_found":
+            return {"status": "error",
+                    "error": (f"I couldn't find any vehicles matching: '{description}'. "
+                              "Try different keywords — e.g. 'SUV', 'sedan', 'pickup truck'."),
+                    "response": None,
+                    "steps": _normalize_steps(result.get("steps", []))}
+        return {
+            "status":   "ok", "error": None,
+            "response": _format_results_as_text(result.get("results", [])),
+            "steps":    _normalize_steps(result.get("steps", []))
+        }
     except Exception as exc:
-        err_detail = str(exc)
         traceback.print_exc()
-        return ExecuteResponse(
-            status="error",
-            error=err_detail,
-            response=None,
-            steps=[],
-        )
+        return {"status": "error", "error": str(exc), "response": None, "steps": []}
 
 
 # ===========================================================================
