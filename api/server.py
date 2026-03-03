@@ -17,10 +17,22 @@ import traceback
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
-# Suppress LangChain's verbose OUTPUT_PARSING_FAILURE console message — the
-# error is already handled gracefully by handle_parsing_errors on each executor.
+# ── Logging — all output goes to stdout so Render captures it ─────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+    stream=sys.stdout,
+    force=True,
+)
+# Keep only noisy low-level libraries quiet
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("pinecone").setLevel(logging.WARNING)
+# Suppress the harmless OUTPUT_PARSING_FAILURE spam from LangChain parsers
 logging.getLogger("langchain_core.output_parsers").setLevel(logging.ERROR)
-logging.getLogger("langchain.agents").setLevel(logging.ERROR)
 
 
 from fastapi import FastAPI, HTTPException, Request
