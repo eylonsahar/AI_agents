@@ -249,7 +249,7 @@ def agent_info():
     return {
         "description": (
             "AItzik is a multi-agent system that autonomously finds used vehicles matching "
-            "your requirements, fills in missing listing data by contacting mock sellers, "
+            "your requirements, fills in missing listing data by contacting sellers, "
             "and schedules Google Calendar meeting links so you can view each car."
         ),
         "purpose": (
