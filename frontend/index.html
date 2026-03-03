@@ -95,6 +95,85 @@
       animation: pulse 2s infinite;
     }
 
+    /* ── Architecture button ─────────────────────────────────────── */
+    #arch-btn {
+      margin-left: auto;
+      padding: 7px 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s;
+      white-space: nowrap;
+    }
+
+    #arch-btn:hover {
+      opacity: .85;
+      transform: translateY(-1px);
+    }
+
+    /* ── Architecture Modal ─────────────────────────────────────── */
+    #arch-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #arch-modal.open {
+      display: flex;
+    }
+
+    .arch-modal-box {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: 0 0 60px rgba(108, 99, 255, .3);
+    }
+
+    .arch-modal-box h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--accent2);
+    }
+
+    #arch-img {
+      display: block;
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .arch-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      transition: color .2s;
+    }
+
+    .arch-close:hover {
+      color: var(--text);
+    }
+
     @keyframes pulse {
 
       0%,
@@ -701,8 +780,18 @@
         <h1>AItzik</h1>
         <p>AI-Powered Car Agent</p>
       </div>
+      <button id="arch-btn" onclick="openArchModal()" title="View system architecture">🏗️ Architecture</button>
       <div class="status-dot" title="API online"></div>
     </header>
+
+    <!-- Architecture Modal -->
+    <div id="arch-modal" onclick="closeArchModal()">
+      <div class="arch-modal-box" onclick="event.stopPropagation()">
+        <button class="arch-close" onclick="closeArchModal()">✕</button>
+        <h2>System Architecture</h2>
+        <img id="arch-img" src="/api/model_architecture" alt="AItzik System Architecture" />
+      </div>
+    </div>
 
     <!-- Chat -->
     <div id="chat">
@@ -1105,6 +1194,11 @@
       const s = String(val);
       return s.length > 2000 ? s.slice(0, 2000) + '\n… (truncated)' : s;
     }
+
+    /* ── Architecture modal ─────────────────────────────────────── */
+    function openArchModal() { document.getElementById('arch-modal').classList.add('open'); }
+    function closeArchModal() { document.getElementById('arch-modal').classList.remove('open'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeArchModal(); });
   </script>
 </body>
 
