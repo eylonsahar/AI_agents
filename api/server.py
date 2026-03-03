@@ -449,7 +449,7 @@ def execute(body: ExecuteRequest, stream: bool = False):
             "message": (
                 "✅ Request received! Your AI car agent is now searching for the best "
                 "listings, contacting sellers, and scheduling viewings. "
-                "This usually takes 2–5 minutes — we'll return the full results once ready."
+                "This usually takes 10 minutes — we'll return the full results once ready."
             )
         }) + "\n"
 
