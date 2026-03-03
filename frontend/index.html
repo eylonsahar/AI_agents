@@ -291,6 +291,35 @@
       background: #1a1600;
     }
 
+    /* ── Processing spinner ────────────────────────────────────── */
+    .processing-bubble {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .spinner {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border: 3px solid rgba(255, 184, 108, .25);
+      border-top-color: var(--warn);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-top: 2px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .processing-text {
+      flex: 1;
+      line-height: 1.55;
+    }
+
     /* ── Steps trace ─────────────────────────────────────────────────── */
     .steps-container {
       margin-top: 14px;
@@ -1113,7 +1142,12 @@
 
           if (data.status === 'processing') {
             removeTyping();
-            appendBubble('agent', data.message || '⏳ Processing your request…', 'warn-bubble');
+            const msg = data.message || '⏳ Processing your request…';
+            const el = appendBubble('agent', '', 'warn-bubble');
+            el.innerHTML = `<div class="processing-bubble">
+              <div class="spinner"></div>
+              <div class="processing-text">${escapeHtml(msg)}</div>
+            </div>`;
             ackShown = true;
           } else if (data.status === 'error') {
             if (!ackShown) removeTyping();
