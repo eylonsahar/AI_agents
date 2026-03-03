@@ -23,7 +23,8 @@ logging.getLogger("langchain_core.output_parsers").setLevel(logging.ERROR)
 logging.getLogger("langchain.agents").setLevel(logging.ERROR)
 
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -90,6 +91,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    """Return a clean JSON error instead of Pydantic's raw 422 detail."""
+    # Collect human-readable messages for each bad field
+    messages = []
+    for err in exc.errors():
+        field = " -> ".join(str(x) for x in err.get("loc", []) if x != "body")
+        msg   = err.get("msg", "invalid value")
+        messages.append(f"'{field}': {msg}" if field else msg)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status": "error",
+            "error":  "Invalid request: " + "; ".join(messages),
+            "response": None,
+            "steps": [],
+        },
+    )
 
 # Serve the frontend at the root
 FRONTEND_DIR = os.path.join(ROOT, "frontend")
@@ -274,77 +295,72 @@ def agent_info():
         },
         "prompt_examples": [
             {
-                "prompt": "I need a reliable family SUV, max price $20000, minimum year 2018",
+                "prompt": "Reliable family SUV, prefer silver or white",
+                "max_price": "22000",
+                "year_min": "2018",
                 "full_response": (
                     "🌟 AItzik's TOP RECOMMENDATIONS\n\n"
-                    "━━ KIA SPORTAGE ━━\n"
-                    "💡 Why this model: Excellent reliability and space for families, within budget.\n\n"
+                    "━━ HYUNDAI SANTA FE ━━\n"
+                    "💡 Why this model: Meets the user's year requirement (2018+), is explicitly described as a large, "
+                    "practical seven-seat family SUV and is noted as good value for money. The retrieved data states "
+                    "you'll need around £16,000 for a used Santa Fe, which is within the user's £22,000 max price. "
+                    "The description emphasizes roomy second and third rows, flexible interior space and family-friendly "
+                    "equipment, directly matching the request for a reliable family SUV.\n\n"
                     "  Option #1:\n"
-                    "    • Price: 18500\n"
-                    "    • Year: 2019\n"
-                    "    • Condition: Good\n"
-                    "    • Mileage: 62000\n"
-                    "    • Accident: none\n"
-                    "    • Paint Color: silver\n"
-                    "    • State: CA\n"
+                    "    • Region: ocala\n    • Price: 14500\n    • Year: 2018.0\n    • Condition: excellent\n"
+                    "    • Paint Color: blue\n    • State: fl\n    • Accident: none\n    • Mileage: 84200\n"
                     "    📅 Schedule a viewing:\n"
-                    "       🔗 2026-03-05 14:00: https://www.google.com/calendar/render?..."
+                    "       🔗 2026-03-05 18:15: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+hyundai+santa+fe&dates=20260305T181500%2F20260305T184500&details=Car+ID%3A+7315970890&sf=true\n"
+                    "       🔗 2026-03-08 11:30: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+hyundai+santa+fe&dates=20260308T113000%2F20260308T120000&details=Car+ID%3A+7315970890&sf=true\n\n"
+                    "  Option #2:\n"
+                    "    • Region: inland empire\n    • Price: 19900\n    • Year: 2019.0\n    • Condition: excellent\n"
+                    "    • Paint Color: red\n    • State: ca\n    • Accident: 2021-08-14\n    • Mileage: 84250\n"
+                    "    📅 Schedule a viewing:\n"
+                    "       🔗 2026-03-04 18:00: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+hyundai+santa+fe&dates=20260304T180000%2F20260304T183000&details=Car+ID%3A+7316590169&sf=true\n"
+                    "       🔗 2026-03-08 11:30: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+hyundai+santa+fe&dates=20260308T113000%2F20260308T120000&details=Car+ID%3A+7316590169&sf=true\n\n"
+                    "━━ MITSUBISHI OUTLANDER ━━\n"
+                    "💡 Why this model: Includes model years within the user's minimum (2018-2021 examples included) "
+                    "and pricing ranges show many examples available at or below £22,000. The Outlander is described "
+                    "as a good-value, well-equipped large SUV with family appeal and a five-star Euro NCAP rating.\n\n"
+                    "  Option #3:\n"
+                    "    • Region: columbus\n    • Price: 18997\n    • Year: 2019.0\n    • Condition: excellent\n"
+                    "    • Paint Color: grey\n    • State: oh\n    • Accident: none\n    • Mileage: 85200\n"
+                    "    📅 Schedule a viewing:\n"
+                    "       🔗 2026-03-06 18:00: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+mitsubishi+outlander&dates=20260306T180000%2F20260306T183000&details=Car+ID%3A+7317007116&sf=true\n"
+                    "       🔗 2026-03-11 10:30: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+mitsubishi+outlander&dates=20260311T103000%2F20260311T110000&details=Car+ID%3A+7317007116&sf=true\n\n"
+                    "Click the links above to add viewings to your calendar!"
                 ),
                 "steps": [
-                    {
-                        "module": "Supervisor / DecisionMaking",
-                        "prompt": "Find 4 complete vehicle listings and schedule meetings...",
-                        "response": "Thought: I should search for vehicle models first.\nAction: search_vehicle_models\nAction Input: \"\"\nObservation: Loaded 3 vehicle models from JSON"
-                    },
-                    {
-                        "module": "Supervisor / DecisionMaking",
-                        "prompt": "...(continued ReAct loop)...",
-                        "response": "Thought: Now I should retrieve listings.\nAction: retrieve_listings\nAction Input: \"\"\nObservation: Retrieved 9 listings"
-                    },
-                    {
-                        "module": "Supervisor / DecisionMaking",
-                        "prompt": "...(continued)...",
-                        "response": "Action: process_listings"
-                    },
-                    {
-                        "module": "FieldAgent / DecisionMaking",
-                        "prompt": "Process all vehicle listings...",
-                        "response": "Thought: Listing 7391 needs mileage and accident data.\nAction: fill_missing_data\nAction Input: {\"listing_id\": \"7391\", \"fields_to_request\": [\"mileage\", \"accident\"]}"
-                    },
-                    {
-                        "module": "FieldAgent / MockSeller/GetData",
-                        "prompt": "You are a private individual selling a used car...",
-                        "response": "mileage = 62000\naccident = none\npaint_color = silver\nstate = ca\ncondition = good"
-                    },
-                    {
-                        "module": "FieldAgent / MockSeller/Scheduling",
-                        "prompt": "Generate exactly 2 available slots...",
-                        "response": "2026-03-05 14:00\n2026-03-08 11:00"
-                    }
-                ]
-            },
-            {
-                "prompt": "Looking for a sporty coupe under $15000, year 2016 or newer",
-                "full_response": (
-                    "I couldn't find any vehicles matching your criteria exactly. "
-                    "The RAG search did not return sporty coupes in the current database. "
-                    "Try widening your budget or choosing a more common body type such as sedan or SUV."
-                ),
-                "steps": [
-                    {
-                        "module": "Supervisor / DecisionMaking",
-                        "prompt": "Find 4 complete vehicle listings...",
-                        "response": "Action: search_vehicle_models"
-                    },
-                    {
-                        "module": "Supervisor / DecisionMaking",
-                        "prompt": "...",
-                        "response": "Warning: JSON loaded but 'vehicles' list is empty"
-                    }
+                    {"module": "Supervisor / Thought", "prompt": "", "response": "I'll search the database for vehicle models that match the user's requirements (max $22,000, min year 2018, reliable family SUVs, prefer silver or white)."},
+                    {"module": "SearchPipeline / VehicleModelRetriever", "prompt": "max price: 22000 min year: 2018 Reliable family SUV, prefer silver or white", "response": "Hyundai Santa Fe (4X4, 2018-2024) | match: 0.95 | Meets the user's year requirement (2018+), is explicitly described as a large, practical seven-seat family SUV and is noted as good value for money.\nMitsubishi Outlander (4X4, 2013-2021) | match: 0.86 | Good-value, well-equipped large SUV with family appeal, five-star Euro NCAP rating, PHEV variant offers very low running costs."},
+                    {"module": "Supervisor / Thought", "prompt": "", "response": "I'll retrieve for-sale listings for the found models (Hyundai Santa Fe and Mitsubishi Outlander) that match the user's constraints."},
+                    {"module": "SearchPipeline / ListingsRetriever", "prompt": "Hyundai Santa Fe, Mitsubishi Outlander", "response": "Total: 6 listings | Hyundai Santa Fe: 3 listings, Mitsubishi Outlander: 3 listings"},
+                    {"module": "SearchPipeline / DecisionAgent", "prompt": "Score and rank 6 listings", "response": "#1: hyundai santa fe (2019.0, $19900) | score: 0.85\n#2: hyundai santa fe (2018.0, $14500) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71\n#4: mitsubishi outlander (2014.0, $3999) | score: 0.71"},
+                    {"module": "Supervisor / Thought", "prompt": "", "response": "I'll delegate completing the 6 retrieved listings and scheduling meetings with sellers."},
+                    {"module": "FieldAgent / Thought", "prompt": "", "response": "This listing is missing accident and mileage; request both fields from the seller for listing 7316590169 before scheduling a meeting."},
+                    {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7316590169: accident, mileage", "response": "mileage = 84250\naccident = 2021-08-14\npaint_color = silver\nstate = CA\nid = 7316590169"},
+                    {"module": "FieldAgent / Thought", "prompt": "", "response": "All required fields for listing 7316590169 were just filled; schedule a meeting now."},
+                    {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-04 18:00\n2026-03-08 11:30"},
+                    {"module": "FieldAgent / Thought", "prompt": "", "response": "This listing is missing accident and mileage; request both fields from the seller for listing 7315970890 before scheduling a meeting."},
+                    {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7315970890: accident, mileage", "response": "mileage = 84200\naccident = none\npaint_color = silver\nstate = CA\nid = 7315970890"},
+                    {"module": "FieldAgent / Thought", "prompt": "", "response": "All required fields for listing 7315970890 are filled; schedule a meeting now."},
+                    {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-05 18:15\n2026-03-08 11:30"},
+                    {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7315719756: accident, mileage", "response": "mileage = 84250\naccident = none\npaint_color = silver\nstate = CA\nid = 7315719756"},
+                    {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-04 17:30\n2026-03-08 11:00"},
+                    {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7317007116: accident, mileage", "response": "mileage = 85200\naccident = none\npaint_color = silver\nstate = CA\nid = 7317007116"},
+                    {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-06 18:00\n2026-03-11 10:30"},
+                    {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7316941545: accident, mileage", "response": "mileage = 94200\naccident = none\npaint_color = silver\nstate = ca\nid = 7316941545"},
+                    {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-05 18:00\n2026-03-08 11:15"},
+                    {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7316872707: accident, mileage", "response": "mileage = 84250\naccident = 2021-08-15\npaint_color = silver\nstate = CA\nid = 7316872707"},
+                    {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-08 11:00\n2026-03-11 18:30"},
+                    {"module": "FieldAgent / FinalAnswer", "prompt": "", "response": "Completed processing for 6 listings. Missing fields filled and meetings scheduled (2 slots each) for listings: 7316590169, 7315970890, 7315719756, 7317007116, 7316941545, 7316872707."},
+                    {"module": "SearchPipeline / DecisionAgent (final re-ranking)", "prompt": "Re-rank 6 fully enriched listings", "response": "#1: hyundai santa fe (2018.0, $14500) | score: 0.79\n#2: hyundai santa fe (2019.0, $19900) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71\n#4: mitsubishi outlander (2014.0, $8995) | score: 0.69\n#5: mitsubishi outlander (2014.0, $3999) | score: 0.63\n#6: hyundai santa fe (2018.0, $27675) | score: 0.51"},
+                    {"module": "Supervisor / FinalAnswer", "prompt": "", "response": "Mission complete."}
                 ]
             }
         ]
     }
+
 
 
 @app.get("/api/model_architecture")
@@ -489,52 +505,77 @@ def execute(body: ExecuteRequest, stream: bool = False):
 def _run_blocking(body, _extract_price, _extract_year,
                    LLMGateway, _check_is_car_search, AgentSupervisor,
                    _vehicle_retriever, _normalize_steps, _format_results_as_text, traceback):
-    """Blocking version of the pipeline — returns a plain dict for JSONResponse."""
-    import json as _json
+    """
+    Blocking pipeline for the plain-curl path (no streaming).
+    Accepts {"prompt": "..."} only — all other fields are extracted automatically.
+    Returns a plain dict that JSONResponse will serialize.
+    """
     api_key = os.environ.get("OPENAI_API_KEY", "")
     if not api_key:
-        return {"status": "error", "error": "OPENAI_API_KEY not configured.", "response": None, "steps": []}
+        return {"status": "error",
+                "error": "Server configuration error: OPENAI_API_KEY is not set.",
+                "response": None, "steps": []}
 
+    # ── Validate prompt ───────────────────────────────────────────────────
     prompt_text = (body.prompt or "").strip()
     if not prompt_text:
-        return {"status": "error", "error": "Prompt cannot be empty.", "response": None, "steps": []}
+        return {"status": "error",
+                "error": "Missing required field: 'prompt' cannot be empty.",
+                "response": None, "steps": []}
 
-    max_price   = body.max_price   or _extract_price(prompt_text)
-    year_min    = body.year_min    or _extract_year(prompt_text)
+    if len(prompt_text) < 10:
+        return {"status": "error",
+                "error": "Prompt is too short. Please describe the car you're looking for in more detail.",
+                "response": None, "steps": []}
+
+    # ── Extract price and year from prompt ────────────────────────────────
+    max_price = body.max_price or _extract_price(prompt_text)
+    year_min  = body.year_min  or _extract_year(prompt_text)
     description = body.description or prompt_text
 
     if not max_price:
-        return {"status": "error", "error": ("Could not determine your maximum price. "
-                "Please include a budget, e.g. 'max price $20000'."), "response": None, "steps": []}
-    if not year_min:
-        return {"status": "error", "error": ("Could not determine a minimum year. "
-                "Please include a year, e.g. 'from 2018 onwards'."), "response": None, "steps": []}
+        return {"status": "error",
+                "error": ("Could not extract a maximum budget from your prompt. "
+                          "Please include a price, e.g. 'under $20,000' or 'max budget 15000'."),
+                "response": None, "steps": []}
 
+    if not year_min:
+        return {"status": "error",
+                "error": ("Could not extract a minimum model year from your prompt. "
+                          "Please include a year, e.g. '2018 or newer' or 'from 2016'."),
+                "response": None, "steps": []}
+
+    # ── Intent validation ─────────────────────────────────────────────────
     llm_gateway = LLMGateway.get_instance(api_key=api_key)
     if not _check_is_car_search(prompt_text, description, llm_gateway):
         return {"status": "error",
-                "error": ("Your request doesn't seem to be about finding a car. "
-                          "Please describe the vehicle you're looking for."),
+                "error": ("Invalid request: the prompt does not appear to be a car search. "
+                          "Please describe the vehicle you are looking for, e.g. "
+                          "'reliable family SUV under $20,000 from 2018 or newer'."),
                 "response": None, "steps": []}
 
+    # ── Run the agent ─────────────────────────────────────────────────────
     try:
         sup    = AgentSupervisor(llm_gateway=llm_gateway, vehicle_retriever=_vehicle_retriever)
-        result = sup.run_headless(requirements={"max_price": max_price, "year_min": year_min,
+        result = sup.run_headless(requirements={"max_price": max_price,
+                                                "year_min":  year_min,
                                                 "description": description})
         if result.get("error") == "no_vehicles_found":
             return {"status": "error",
-                    "error": (f"I couldn't find any vehicles matching: '{description}'. "
-                              "Try different keywords — e.g. 'SUV', 'sedan', 'pickup truck'."),
+                    "error": (f"No vehicles found matching: '{description}'. "
+                              "Try broader keywords, e.g. 'SUV', 'sedan', or a specific make."),
                     "response": None,
                     "steps": _normalize_steps(result.get("steps", []))}
         return {
-            "status":   "ok", "error": None,
+            "status":   "ok",
+            "error":    None,
             "response": _format_results_as_text(result.get("results", [])),
             "steps":    _normalize_steps(result.get("steps", []))
         }
     except Exception as exc:
         traceback.print_exc()
         return {"status": "error", "error": str(exc), "response": None, "steps": []}
+
 
 
 # ===========================================================================
@@ -551,7 +592,7 @@ def _extract_price(text: str) -> Optional[str]:
         r"\$\s*([\d,]+(?:\.\d+)?)\s*k?\b",
         r"(?:max(?:imum)?\s+(?:price|budget)|budget)[^\d]*([\d,]+(?:\.\d+)?)\s*k?\b",
         r"\b([\d,]+)\s*dollars?\b",
-        r"\b(\d{4,6})\b",   # fallback: bare 4-6 digit number
+        r"\b(?!20\d{2}\b)(\d{4,6})\b",   # bare 4-6 digit number, but NOT a year (2000-2099)
     ]
     for pattern in patterns:
         m = _re.search(pattern, text, _re.IGNORECASE)
