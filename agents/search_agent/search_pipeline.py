@@ -59,7 +59,8 @@ class SearchPipeline:
         # Store the ranked listings from Stage 3
         self.ranked_listings: List[VehicleListing] = []
     
-    def search(self, query: str, top_n_models: int = NUM_OF_CHUNKS_TO_RETRIEVE) -> PipelineResult:
+    def search(self, query: str, top_n_models: int = NUM_OF_CHUNKS_TO_RETRIEVE,
+               year_min: Optional[int] = None, price_max: Optional[float] = None) -> PipelineResult:
 
         # Stage 1: Vehicle Model Retrieval
         vehicle_models_result, rag_details = self.vehicle_retriever.search_vehicle_models(
@@ -86,7 +87,9 @@ class SearchPipeline:
         # Stage 2: Listings Retrieval (no LLM - just CSV filtering)
         self.retrieved_listings = self.listings_retriever.retrieve_listings(
             vehicle_models_result=self.recommended_models,
-            top_n=MAX_LISTINGS_PER_VEHICLE
+            top_n=MAX_LISTINGS_PER_VEHICLE,
+            year_min=year_min,
+            price_max=price_max,
         )
 
         total_listings = len(self.retrieved_listings)

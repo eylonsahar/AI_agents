@@ -257,7 +257,23 @@ class AgentSupervisor:
 
 
         retriever = ListingsRetriever()
-        listing_objects = retriever.retrieve_listings(vehicle_models_result=vehicles_result)
+
+        # Parse user constraints for the fallback tiers in retrieve_listings
+        reqs = self.user_requirements or {}
+        try:
+            year_min = int(reqs.get("year_min", 0)) or None
+        except (TypeError, ValueError):
+            year_min = None
+        try:
+            price_max = float(reqs.get("max_price", 0)) or None
+        except (TypeError, ValueError):
+            price_max = None
+
+        listing_objects = retriever.retrieve_listings(
+            vehicle_models_result=vehicles_result,
+            year_min=year_min,
+            price_max=price_max,
+        )
 
         # Convert VehicleListing objects back to the dict format the rest of supervisor expects
         results_by_vehicle = {}

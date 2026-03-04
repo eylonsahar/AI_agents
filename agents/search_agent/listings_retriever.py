@@ -147,50 +147,100 @@ class ListingsRetriever:
     def retrieve_listings(
         self, 
         vehicle_models_result: VehicleModelsResult,
-        top_n: int = MAX_LISTINGS_PER_VEHICLE
+        top_n: int = MAX_LISTINGS_PER_VEHICLE,
+        year_min: Optional[int] = None,
+        price_max: Optional[float] = None,
     ) -> List[VehicleListing]:
         """
         Retrieve listings for the given vehicle models.
-        
+
+        Uses a tiered fallback strategy per model:
+          1. manufacturer + model + model's production-year range
+          2. manufacturer + model + user's year_min (drops model year range)
+          3. manufacturer only + user's year_min (drops specific model name)
+
         Args:
             vehicle_models_result: Result from Stage 1 containing recommended vehicle models
             top_n: Maximum number of listings to return per vehicle model
-            
+            year_min: User's minimum year constraint (used in fallback tiers)
+            price_max: User's maximum price constraint applied globally
+
         Returns:
             List of VehicleListing objects
         """
         all_listings: List[VehicleListing] = []
-        
+
         for vehicle_model in vehicle_models_result.vehicles:
-            make = vehicle_model.make.strip().lower()
+            make  = vehicle_model.make.strip().lower()
             model = vehicle_model.model.strip().lower()
-            years_range = self._parse_years_range(vehicle_model.years)
-            
+            model_years = self._parse_years_range(vehicle_model.years)
+
             if not make and not model:
                 continue
-            
-            # Build filter mask
-            mask = pd.Series([True] * len(self.df))
-            
-            if make and "manufacturer" in self.df.columns:
-                mask &= self.df["manufacturer"] == make
-            
-            if model and "model" in self.df.columns:
-                mask &= self.df["model"].str.contains(model, case=False, na=False)
-            
-            if years_range is not None and "year" in self.df.columns:
-                min_year, max_year = years_range
-                mask &= self.df["year"].between(min_year, max_year, inclusive="both")
-            
-            # Get matching listings
-            listings_raw = self.df[mask].to_dict(orient="records")
-            
-            # Select top n using custom ranking
+
+            # -----------------------------------------------------------
+            # Tier 1: manufacturer + model + model production-year range
+            # -----------------------------------------------------------
+            listings_raw = self._query(make=make, model=model,
+                                       year_range=model_years,
+                                       year_min=None, price_max=price_max)
+
+            # -----------------------------------------------------------
+            # Tier 2: manufacturer + model + user year_min only
+            # -----------------------------------------------------------
+            if not listings_raw and model and year_min is not None:
+                print(f"[ListingsRetriever] Tier-1 returned 0 for '{make} {model}'. "
+                      f"Falling back to user year_min={year_min}.")
+                listings_raw = self._query(make=make, model=model,
+                                           year_range=None,
+                                           year_min=year_min, price_max=price_max)
+
+            # -----------------------------------------------------------
+            # Tier 3: manufacturer only + user year_min
+            # -----------------------------------------------------------
+            if not listings_raw and make and year_min is not None:
+                print(f"[ListingsRetriever] Tier-2 returned 0 for '{make} {model}'. "
+                      f"Falling back to manufacturer '{make}' only.")
+                listings_raw = self._query(make=make, model=None,
+                                           year_range=None,
+                                           year_min=year_min, price_max=price_max)
+
             top_listings = self._select_top_cars(listings_raw, n=top_n)
-            
-            # Convert to VehicleListing objects
+
             for listing_dict in top_listings:
                 listing = VehicleListing.from_dict(listing_dict)
                 all_listings.append(listing)
-        
+
         return all_listings
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _query(
+        self,
+        make: Optional[str],
+        model: Optional[str],
+        year_range: Optional[tuple],
+        year_min: Optional[int],
+        price_max: Optional[float],
+    ) -> List[Dict[str, Any]]:
+        """Apply filters to self.df and return matching rows as dicts."""
+        mask = pd.Series([True] * len(self.df))
+
+        if make and "manufacturer" in self.df.columns:
+            mask &= self.df["manufacturer"] == make
+
+        if model and "model" in self.df.columns:
+            mask &= self.df["model"].str.contains(model, case=False, na=False)
+
+        if year_range is not None and "year" in self.df.columns:
+            min_y, max_y = year_range
+            mask &= self.df["year"].between(min_y, max_y, inclusive="both")
+        elif year_min is not None and "year" in self.df.columns:
+            mask &= self.df["year"] >= year_min
+
+        if price_max is not None and "price" in self.df.columns:
+            mask &= self.df["price"] <= price_max
+
+        return self.df[mask].to_dict(orient="records")
