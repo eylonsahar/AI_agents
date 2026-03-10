@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
-COST_PER_RUN_ESTIMATE = 0.15
+COST_PER_RUN_ESTIMATE = 0.05
 EFFICIENCY_STEP_THRESHOLD = 40
 
 
