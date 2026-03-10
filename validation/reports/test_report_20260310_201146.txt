@@ -1,0 +1,26 @@
+============================================================
+AItzik Test Report
+============================================================
+Run at: 2026-03-10T20:11:46.245478
+Target URL: http://localhost:8001
+Tiers run: [0, 1]
+Random mode: False
+Replay file: none
+
+SUMMARY
+----------------------------------------
+Total: 36  Passed: 33  Failed: 3  Skipped: 0
+Pipeline runs used: 0
+
+GRADED REQUIREMENTS
+----------------------------------------
+  test_team_info: PASS
+  test_agent_info_completeness: PASS
+  test_model_architecture: PASS
+  test_frontend_smoke: PASS
+
+FAILED TESTS
+----------------------------------------
+  [0] extract_price: car from 1999 under 20000...: expected '20000', got '1999'
+  [0] extract_price: 20k budget from 2018...: expected '20000', got '2018'
+  [0] extract_year: car from 1999 under 20000...: expected '1999', got None
