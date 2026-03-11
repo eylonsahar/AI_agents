@@ -176,16 +176,16 @@ def _check_is_car_search(prompt: str, description: str, llm_gateway) -> bool:
     """
     text = f"{prompt} {description}".strip()
     try:
-        response = llm_gateway.call_llm(
-            system_prompt=(
+        response_text, _ = llm_gateway.call_llm(
+            prompt=(
                 "You are a request classifier. "
                 "Answer ONLY with the single word 'yes' or 'no'. "
                 "'yes' = the request is about finding / buying a used car or vehicle. "
-                "'no' = the request is about anything else."
-            ),
-            user_message=f"Is this a car search request? Request: '{text}'",
+                "'no' = the request is about anything else.\n\n"
+                f"Is this a car search request? Request: '{text}'"
+            )
         )
-        return "yes" in response.strip().lower()[:10]
+        return "yes" in response_text.strip().lower()[:10]
     except Exception:
         return True   # fail open: let the agent try
 
