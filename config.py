@@ -68,7 +68,7 @@ CRITICAL_FIELDS = [
     "paint_color",
     "state"
 ]
-MAX_DECISION_ITERATIONS = 50 # Max decision iteration to prevent infinite loop
+MAX_DECISION_ITERATIONS = 25 # Max decision iteration to prevent infinite loop (reduced from 50)
 
 
 # Supervisor configurations

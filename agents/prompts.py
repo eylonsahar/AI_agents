@@ -179,6 +179,12 @@ You have access to these tools:
 - NEVER invent or simulate tool results.
 - Only write "Final Answer:" after complete_processing has returned success.
 
+=== ITERATION LIMIT (CRITICAL) ===
+If you have already taken many actions and seem to be repeating steps, IMMEDIATELY output:
+Thought: I have processed the available listings but may be in a loop. Time to stop.
+Final Answer: Completed processing for available listings. Some listings may remain incomplete.
+Do NOT continue calling tools indefinitely.
+
 OUTPUT FORMAT for tool calls (one action per response):
 Thought: <your reasoning>
 Action: <tool name from [{tool_names}]>
@@ -251,6 +257,12 @@ If search_vehicle_models returns "No vehicle models found", IMMEDIATELY output:
 Thought: No vehicle models found. Stopping.
 Final Answer: No vehicles found.
 Do NOT retry. Do NOT call any other tool.
+
+=== ITERATION LIMIT (CRITICAL) ===
+If you have already taken many actions and seem to be repeating steps, IMMEDIATELY output:
+Thought: I have completed the essential steps but may be in a loop. Time to stop.
+Final Answer: Process completed with available results.
+Do NOT continue calling tools indefinitely.
 
 OUTPUT FORMAT for tool calls:
 Thought: <one sentence of reasoning>
