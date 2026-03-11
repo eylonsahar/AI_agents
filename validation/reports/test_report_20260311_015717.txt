@@ -1,0 +1,283 @@
+============================================================
+AItzik Test Report
+============================================================
+Run at: 2026-03-11T01:57:17.702566
+Target URL: http://localhost:8001
+Tiers run: [0, 1, 2, 3]
+Random mode: True
+Num examples: 9
+Replay file: none
+
+SUMMARY
+----------------------------------------
+Total: 58  Passed: 51  Failed: 7  Skipped: 0
+Pipeline runs used: 20
+
+GRADED REQUIREMENTS
+----------------------------------------
+  test_team_info: PASS
+  test_agent_info_completeness: PASS
+  test_model_architecture: PASS
+  test_frontend_smoke: PASS
+  module_name_consistency: PASS
+
+FAILED TESTS
+----------------------------------------
+  [0] extract_price: car from 1999 under 20000...: expected '20000', got '1999'
+  [0] extract_price: 20k budget from 2018...: expected '20000', got '2018'
+  [0] extract_year: car from 1999 under 20000...: expected '1999', got None
+  [3] tier3_no_results: expected error, got status=ok
+    prompt: Toyota Okozaky under $50000, 2020 or newer...
+  [3] tier3_random: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+    prompt: Searching for a family SUV under $25,000 USD, minimum model year 2017....
+  [3] tier3_random: status=error, steps=4
+    prompt: Hunting for a luxury sedan, max price $45,000 USD, minimum model year 2020....
+  [3] tier3_random: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+    prompt: Interested in a sporty coupe, max price $30,000 USD, min model year 2018....
+
+AITZIK RESPONSE SNAPSHOTS
+----------------------------------------
+(For manual review — not auto-tested.)
+  [2] tier2_rejected
+    Prompt: Looking for a 2016 round-trip flight to Orlando for about $199, nonstop preferre...
+    Response: Invalid request: the prompt does not appear to be a car search. Please describe the vehicle you are looking for, e.g. 'reliable family SUV under $20,000 from 2018 or newer'.
+
+  [2] tier2_rejected
+    Prompt: Searching for a 2019 two-bedroom condo downtown listed at $299,000, must be pet-...
+    Response: Invalid request: the prompt does not appear to be a car search. Please describe the vehicle you are looking for, e.g. 'reliable family SUV under $20,000 from 2018 or newer'.
+
+  [2] tier2_rejected
+    Prompt: Want to buy a 2017 55-inch OLED TV for $899 with local pickup and warranty.
+    Response: Invalid request: the prompt does not appear to be a car search. Please describe the vehicle you are looking for, e.g. 'reliable family SUV under $20,000 from 2018 or newer'.
+
+  [2] tier2_rejected
+    Prompt: Need an annual insurance quote for my 2015 Honda Civic — estimated premium $1,20...
+    Response: Invalid request: the prompt does not appear to be a car search. Please describe the vehicle you are looking for, e.g. 'reliable family SUV under $20,000 from 2018 or newer'.
+
+  [2] tier2_rejected
+    Prompt: Reserve a 2020 SUV rental for one week, total cost $450, pickup at the airport.
+    Response: Invalid request: the prompt does not appear to be a car search. Please describe the vehicle you are looking for, e.g. 'reliable family SUV under $20,000 from 2018 or newer'.
+
+  [2] tier2_rejected
+    Prompt: I want to sell my 2011 Toyota Camry for $3,500 and also buy 2011 brake pads for ...
+    Response: Invalid request: the prompt does not appear to be a car search. Please describe the vehicle you are looking for, e.g. 'reliable family SUV under $20,000 from 2018 or newer'.
+
+  [2] tier2_rejected
+    Prompt: Looking for a 2014 Harley-Davidson Sportster around $7,900 with under 20k miles.
+    Response: No vehicles found matching: 'Looking for a 2014 Harley-Davidson Sportster around $7,900 with under 20k miles.'. Try broader keywords, e.g. 'SUV', 'sedan', or a specific make.
+
+  [2] tier2_rejected
+    Prompt: Need a 2019 Ford F-350 diesel crew cab for work, budget $28,000, heavy-duty towi...
+    Response: No vehicles found matching: 'Need a 2019 Ford F-350 diesel crew cab for work, budget $28,000, heavy-duty towing required.'. Try broader keywords, e.g. 'SUV', 'sedan', or a specific make.
+
+  [2] tier2_rejected
+    Prompt: Searching for a 2016 Class C RV 28ft listed at $34,500, ready-to-camp condition.
+    Response: No vehicles found matching: 'Searching for a 2016 Class C RV 28ft listed at $34,500, ready-to-camp condition.'. Try broader keywords, e.g. 'SUV', 'sedan', or a specific make.
+
+  [3] tier3_spec_compliant_prompt_only
+    Prompt: Reliable family SUV under $22,000, 2018 or newer
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ MITSUBISHI OUTLANDER ━━
+💡 Why this model: Post-facelift Outlander models from 2019-2021 fall within the retrieved price range ('at least £20,000 to £22,000'), meeting the user's max-price constraint. The Outlander is described as a spacious family SUV with a five-star Euro NCAP rating, room for five adults, large boot space, and the popular PHEV variant offering low running costs (good for family running-cost concerns) — all aligning with a requirement for a re...
+
+  [3] tier3_explicit_fields
+    Prompt: family SUV
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ MITSUBISHI OUTLANDER ━━
+💡 Why this model: Meets the min-year requirement with 2018-2021 models available and can be had at or below the user's £22,000 max (post-facelift 2019-2021 cars listed at £20,000-£22,000). Described as a large, practical family SUV with space for five adults, a large boot, strong safety (five-star Euro NCAP rating) and PHEV option offering low running costs—all good family-oriented attributes.
+
+  Option #1:
+    • Region: new hampshire
+  ...
+
+  [3] tier3_no_results
+    Prompt: Toyota Okozaky under $50000, 2020 or newer
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ TOYOTA YARIS ━━
+💡 Why this model: Meets the minimum year requirement (starts at 2020 in the data) and is well within the user's max-price constraint based on the retrieved prices (2020/21 Icon examples from around £10,000; even newer 2024/25 at ~£18,000). Extremely fuel-efficient per the data (official 68.9mpg, ~60mpg real-world), cheap to insure (groups 13–14) and low servicing costs (£310 for a full service). Good tech/safety kit (Android Auto standard, five-...
+
+  [3] tier3_streaming
+    Prompt: Reliable family SUV under $22,000, 2018 or newer
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ MITSUBISHI OUTLANDER ━━
+💡 Why this model: Includes 2019–2021 models (meets the >=2018 year requirement). The retrieved data highlights it as a spacious, family-friendly large SUV with five-star Euro NCAP crash rating and PHEV/petrol options. The listing shows post-facelift 2019–2021 examples priced at £20,000–£22,000 in the retrieved data, which fits the user's numeric maximum of 22,000. Practical family features (room for five, large boot, optional third row o...
+
+  [3] tier3_random
+    Prompt: Looking for a reliable compact sedan, max $8,000 USD, model year 2014 or newer.
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ BMW 3 SERIES ━━
+💡 Why this model: This vehicle matches the requested body type (saloon) and the available model years include 2014–2019. The retrieved data highlights a strong balance of engine efficiency, refinement and handling, making it a practical, compact saloon choice. Importantly for budget considerations, the data gives used-market guidance showing examples from around £5,000 up to about £7,500 for sensible petrol/diesel examples — the only model in th...
+
+  [3] tier3_random
+    Prompt: Need a used pickup truck — no more than $35,000 USD, min year 2019.
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ FORD RANGER ━━
+💡 Why this model: The Ranger is explicitly a 4x4 pick-up with model years covering 2019 and later (data range 2011–2025). The retrieved pricing guidance shows many used examples in accessible ranges (early facelifted/used examples from around £8,000 up to facelifted examples from ~£17,000 and Euro 6 examples from ~£19,000; near-new low-mileage examples around £23,000). The Ranger offers strong towing (up to 3500kg with the correct axle) and a ran...
+
+  [3] tier3_random
+    Prompt: Find me an electric vehicle up to $20,000 USD, 2016 or newer.
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ HYUNDAI IONIQ ━━
+💡 Why this model: The Ioniq is offered as a fully electric model in the 2017-2022 range (meets the 2016+ year requirement). The retrieved data explicitly states the fully electric Ioniq is available and lists used prices starting around £7,000, which is well within the user's budget ceiling as stated in the data. The Ioniq EV also has useful official ranges cited (around 174–194 miles for later EVs) and strong value/kit levels, making it a prac...
+
+  [3] tier3_random
+    Prompt: Hunting for a luxury sedan, max price $45,000 USD, minimum model year 2020.
+    Response: No vehicles found matching: 'Hunting for a luxury sedan, max price $45,000 USD, minimum model year 2020.'. Try broader keywords, e.g. 'SUV', 'sedan', or a specific make.
+
+  [3] tier3_random
+    Prompt: Looking for a fuel-efficient hybrid hatchback under $15,000 USD, min year 2015.
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ TOYOTA PRIUS ━━
+💡 Why this model: Meets the user's minimum year (2016 model is newer than 2015), is a fuel-efficient hybrid (regular Prius quoted at 67.3mpg WLTP and plug-in variant extremely economical on paper), and the retrieved data shows 2016 examples start at around £12,000 and 2017 from about £13,000—both listed below the £15,000 price threshold in the data. The entry also cites reasonable servicing costs, good build quality, and available trims/options ...
+
+  [3] tier3_random
+    Prompt: Want a used minivan for family trips, max $22,500 USD, model year 2016 or newer.
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ FORD C MAX ━━
+💡 Why this model: The C-Max is explicitly an MPV (family-oriented) with a spacious interior, good driving dynamics, and flexible seating for family trips. The retrieved data notes ample front and rear room, a practical boot, and a range of efficient engines (including economical 1.0-litre petrol options) that make it suitable for regular family use. Price guidance in the retrieved data (high-mileage examples around £4,000, average-mileage cars aro...
+
+  [3] tier3_random
+    Prompt: Searching for a small crossover SUV, budget no more than $12,000 USD, minimum ye...
+    Response: 🌟 AItzik's TOP RECOMMENDATIONS
+
+━━ NISSAN JUKE ━━
+💡 Why this model: The Juke is explicitly described as the small-SUV pioneer with extrovert styling and compact dimensions — a direct match for a small crossover requirement. Its production years include 2012+, and the retrieved used-price guidance shows many examples well within the user's budget (examples under £3,000 and typical ranges of £4,000–£8,000), making it a strong fit on price. The description does note poor reliability and limited int...
+
+
+UNEXPECTED EXCEPTIONS (code failures)
+----------------------------------------
+  [3] tier3_random: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+    Request (for replay): {
+      "prompt": "Searching for a family SUV under $25,000 USD, minimum model year 2017."
+}
+    Traceback:
+      Traceback (most recent call last):
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 534, in _make_request
+          response = conn.getresponse()
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connection.py", line 571, in getresponse
+          httplib_response = super().getresponse()
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\http\client.py", line 1377, in getresponse
+          response.begin()
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\http\client.py", line 320, in begin
+          version, status, reason = self._read_status()
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\http\client.py", line 281, in _read_status
+          line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\socket.py", line 704, in readinto
+          return self._sock.recv_into(b)
+      socket.timeout: timed out
+      
+      The above exception was the direct cause of the following exception:
+      
+      Traceback (most recent call last):
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\adapters.py", line 644, in send
+          resp = conn.urlopen(
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+          retries = retries.increment(
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\util\retry.py", line 490, in increment
+          raise reraise(type(error), error, _stacktrace)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\util\util.py", line 39, in reraise
+          raise value
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+          response = self._make_request(
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 536, in _make_request
+          self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 367, in _raise_timeout
+          raise ReadTimeoutError(
+      urllib3.exceptions.ReadTimeoutError: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+      
+      During handling of the above exception, another exception occurred:
+      
+      Traceback (most recent call last):
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\validation\tier3.py", line 236, in run_tier3
+          r = requests.post(f"{base}/api/execute", json={"prompt": prompt}, timeout=600)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\api.py", line 115, in post
+          return request("post", url, data=data, json=json, **kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\api.py", line 59, in request
+          return session.request(method=method, url=url, **kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\sessions.py", line 589, in request
+          resp = self.send(prep, **send_kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\sessions.py", line 703, in send
+          r = adapter.send(request, **kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\adapters.py", line 690, in send
+          raise ReadTimeout(e, request=request)
+      requests.exceptions.ReadTimeout: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+      
+
+  [3] tier3_random: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+    Request (for replay): {
+      "prompt": "Interested in a sporty coupe, max price $30,000 USD, min model year 2018."
+}
+    Traceback:
+      Traceback (most recent call last):
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 534, in _make_request
+          response = conn.getresponse()
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connection.py", line 571, in getresponse
+          httplib_response = super().getresponse()
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\http\client.py", line 1377, in getresponse
+          response.begin()
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\http\client.py", line 320, in begin
+          version, status, reason = self._read_status()
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\http\client.py", line 281, in _read_status
+          line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+        File "C:\Users\ronba\AppData\Local\Programs\Python\Python39\lib\socket.py", line 704, in readinto
+          return self._sock.recv_into(b)
+      socket.timeout: timed out
+      
+      The above exception was the direct cause of the following exception:
+      
+      Traceback (most recent call last):
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\adapters.py", line 644, in send
+          resp = conn.urlopen(
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+          retries = retries.increment(
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\util\retry.py", line 490, in increment
+          raise reraise(type(error), error, _stacktrace)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\util\util.py", line 39, in reraise
+          raise value
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+          response = self._make_request(
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 536, in _make_request
+          self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\urllib3\connectionpool.py", line 367, in _raise_timeout
+          raise ReadTimeoutError(
+      urllib3.exceptions.ReadTimeoutError: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+      
+      During handling of the above exception, another exception occurred:
+      
+      Traceback (most recent call last):
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\validation\tier3.py", line 236, in run_tier3
+          r = requests.post(f"{base}/api/execute", json={"prompt": prompt}, timeout=600)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\api.py", line 115, in post
+          return request("post", url, data=data, json=json, **kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\api.py", line 59, in request
+          return session.request(method=method, url=url, **kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\sessions.py", line 589, in request
+          resp = self.send(prep, **send_kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\sessions.py", line 703, in send
+          r = adapter.send(request, **kwargs)
+        File "C:\Users\ronba\OneDrive - Technion\לימודים- פרטי\שנה ד\נושאים נבחרים\פרוייקט\AI_agents\.venv\lib\site-packages\requests\adapters.py", line 690, in send
+          raise ReadTimeout(e, request=request)
+      requests.exceptions.ReadTimeout: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=600)
+      
+
+
+EFFICIENCY
+----------------------------------------
+  Reliable family SUV under $22,000, 2018 or newer... steps=37
+  family SUV... steps=56 [FLAGGED]
+  Looking for a reliable compact sedan, max $8,000 U... steps=25
+  Need a used pickup truck — no more than $35,000 US... steps=37
+  Find me an electric vehicle up to $20,000 USD, 201... steps=49 [FLAGGED]
+  Hunting for a luxury sedan, max price $45,000 USD,... steps=4
+  Looking for a fuel-efficient hybrid hatchback unde... steps=37
+  Want a used minivan for family trips, max $22,500 ... steps=35
+  Searching for a small crossover SUV, budget no mor... steps=41 [FLAGGED]
