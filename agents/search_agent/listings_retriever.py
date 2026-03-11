@@ -183,7 +183,7 @@ class ListingsRetriever:
             # -----------------------------------------------------------
             listings_raw = self._query(make=make, model=model,
                                        year_range=model_years,
-                                       year_min=None, price_max=price_max)
+                                       year_min=year_min, price_max=price_max)
 
             # -----------------------------------------------------------
             # Tier 2: manufacturer + model + user year_min only
@@ -234,11 +234,15 @@ class ListingsRetriever:
         if model and "model" in self.df.columns:
             mask &= self.df["model"].str.contains(model, case=False, na=False)
 
-        if year_range is not None and "year" in self.df.columns:
-            min_y, max_y = year_range
-            mask &= self.df["year"].between(min_y, max_y, inclusive="both")
-        elif year_min is not None and "year" in self.df.columns:
-            mask &= self.df["year"] >= year_min
+        if "year" in self.df.columns:
+            if year_range is not None:
+                min_y, max_y = year_range
+                # Clamp lower bound to user's year_min (fixes Bug #6/#9)
+                if year_min is not None:
+                    min_y = max(min_y, year_min)
+                mask &= self.df["year"].between(min_y, max_y, inclusive="both")
+            elif year_min is not None:
+                mask &= self.df["year"] >= year_min
 
         if price_max is not None and "price" in self.df.columns:
             mask &= self.df["price"] <= price_max
