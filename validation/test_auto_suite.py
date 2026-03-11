@@ -12,7 +12,7 @@ Usage:
   python -m validation.test_auto_suite --tiers 0 1 --url http://localhost:8001
   python -m validation.test_auto_suite --tiers 0 1 2 3 --random --budget 3.0
   python -m validation.test_auto_suite --tiers 0 1 2 3 --random 9 --budget 3.0
-  python -m validation.test_auto_suite --tiers 2 3 --replay validation/reports/saved_prompts_*.json
+  python -m validation.test_auto_suite --tiers 2 3 --replay validation/samples/saved_prompts_sample.json
 
   With --random [N]: N is the number of prompts to generate (default 6).
   If Tier 2 is enabled, N must be divisible by 3 (BadUserAgent splits into 3 categories).
