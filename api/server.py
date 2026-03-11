@@ -180,7 +180,7 @@ def _check_is_car_search(prompt: str, description: str, llm_gateway) -> bool:
             prompt=(
                 "You are a request classifier. "
                 "Answer ONLY with the single word 'yes' or 'no'. "
-                "'yes' = the request is about finding / buying a used car or vehicle. "
+                "'yes' = the request is about finding / buying a used car. not a brand new car nor other kinds of used vehicles. only used cars!"
                 "'no' = the request is about anything else.\n\n"
                 f"Is this a car search request? Request: '{text}'"
             )
