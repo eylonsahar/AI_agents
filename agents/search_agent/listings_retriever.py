@@ -102,10 +102,13 @@ class ListingsRetriever:
             except Exception:
                 car["_posting_dt"] = datetime.min  # fallback if date invalid or missing
         
-        # Sort by posting_date descending (newest first)
-        cars_sorted = sorted(cars, key=lambda x: x["_posting_dt"], reverse=True)
-        # Then sort by completeness descending (more info first)
-        cars_sorted = sorted(cars_sorted, key=lambda x: self._count_info(x), reverse=True)
+        # Sort by posting_date descending (newest first) and completeness descending (more info first)
+        # Combined sort key: (posting_date, completeness) - tuple ensures both criteria are considered
+        cars_sorted = sorted(
+            cars, 
+            key=lambda x: (x["_posting_dt"], self._count_info(x)), 
+            reverse=True
+        )
         
         # Select top n
         top_n = cars_sorted[:n]
