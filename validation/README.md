@@ -75,7 +75,9 @@ validation/
 ├── tier2.py           # Intent classifier tests
 ├── tier3.py           # Full pipeline tests
 ├── test_auto_suite.py  # AItzikTestSuite, CLI, report generation
-└── reports/           # Auto-created: test_report_*.json, test_report_*.txt, saved_prompts_*.json
+├── samples/           # Sanitized sample for replay (git-tracked)
+│   └── saved_prompts_sample.json
+└── reports/           # Auto-created, gitignored: test_report_*.json, test_report_*.txt, saved_prompts_*.json
 ```
 
 ---
@@ -107,7 +109,7 @@ python -m validation.test_auto_suite --tiers 0 1 2 3 --random --budget 3.0
 python -m validation.test_auto_suite --tiers 0 1 2 3 --random 9 --budget 3.0
 
 # Replay a previous random run (deterministic regression)
-python -m validation.test_auto_suite --tiers 2 3 --replay validation/reports/saved_prompts_20260310_143000.json --budget 3.0
+python -m validation.test_auto_suite --tiers 2 3 --replay validation/samples/saved_prompts_sample.json --budget 3.0
 
 # Against deployed Render instance
 python -m validation.test_auto_suite --tiers 0 1 2 3 --url https://your-app.onrender.com --budget 2.0
