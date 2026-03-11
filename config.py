@@ -69,6 +69,7 @@ CRITICAL_FIELDS = [
     "state"
 ]
 MAX_DECISION_ITERATIONS = 25 # Max decision iteration to prevent infinite loop (reduced from 50)
+MIN_VALID_PRICE = 500  # Listings with price below this are treated as missing/invalid data
 
 
 # Supervisor configurations
