@@ -13,12 +13,12 @@ User Request
      │
      ▼
 ┌─────────────────────────────────────────────────────┐
-│                  Supervisor Agent                    │
+│                  Supervisor Agent                   │
 │  (LangChain ReAct · orchestrates the full pipeline) │
 └───┬──────────────────┬───────────────┬──────────────┘
     │                  │               │
     ▼                  ▼               ▼
-┌──────────────┐  ┌──────────────────────────┐  ┌──────────────────────────┐
+┌───────────────┐  ┌──────────────────────────┐  ┌──────────────────────────┐
 │Search Pipeline│  │   Decision-Making Agent  │  │       Field Agent        │
 │               │  │                          │  │  (LangChain ReAct ·      │
 │ 1. RAG /      │  │  • Scores & ranks        │  │   per-listing enrichment)│
@@ -29,7 +29,7 @@ User Request
 │ 2. CSV        │  │  • Re-ranks fully        │  │                          │
 │    Listings   │  │    enriched listings     │  │  • Schedules 2 Google    │
 │    Retriever  │  │    for final output      │  │    Calendar viewing slots│
-└──────────────┘  └──────────────────────────┘  └──────────────────────────┘
+└───────────────┘  └──────────────────────────┘  └──────────────────────────┘
 ```
 
 ---
@@ -203,6 +203,10 @@ python test_supervisor.py
 
 # Field agent autonomous test
 python test_field_agent_autonomous.py
+
+# Validation suite (pre-deployment)
+python -m validation.test_auto_suite --tiers 0 1              # Free tests only
+python -m validation.test_auto_suite --tiers 0 1 2 3 --random --budget 3.0  # Full suite
 ```
 
 ---
