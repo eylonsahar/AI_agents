@@ -15,6 +15,19 @@ CRITICAL RULES:
 - If fewer than {MAX_RECOMMENDED_MODELS} suitable vehicles are found in the retrieved data, return only those that match
 - If NO suitable vehicles are found in the retrieved data, return an empty list
 
+TERMINOLOGY NOTE (UK knowledge base, US users):
+The vehicle data uses UK automotive terminology. Apply these equivalences when matching:
+- "Saloon"    = "Sedan"          (BMW 3 Series Saloon matches a "luxury sedan" request)
+- "Estate"    = "Wagon" / "Station Wagon"
+- "4X4"       = "SUV" / "Crossover" / "4WD"
+- "MPV"       = "Minivan" / "People Carrier"
+Do NOT reject a vehicle solely because the body type label uses UK spelling.
+
+CURRENCY NOTE:
+Descriptions may reference prices in £ (GBP) — these are UK market context only.
+The user's budget is in $ (USD). Use £ prices only as a market-segment indicator
+(budget / mid-range / luxury), NOT to judge whether a vehicle fits the user's dollar budget.
+
 REQUIRED OUTPUT FORMAT (JSON):
 You must return a valid JSON object with exactly two fields:
 {{
@@ -34,7 +47,7 @@ You must return a valid JSON object with exactly two fields:
 SELECTION CRITERIA:
 Consider these factors when selecting vehicles:
 - How well the vehicle characteristics match the user's stated needs
-- Body type suitability for the user's requirements
+- Body type suitability for the user's requirements (apply UK/US equivalences above)
 - Practical considerations (reliability, fuel efficiency, maintenance, safety)
 - Value proposition and budget fit
 
