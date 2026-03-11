@@ -22,7 +22,7 @@ PRICE_CASES = [
     ("nice car under $10000 from 2019", "10000"),
     ("$1200 used car from 2020", "1200"),
     # Fix 1: under 2000 (2000 allowed; 2001-2099 stay excluded as year-like)
-    ("under 2000 corola from 2000", "2000"),
+    ("under 2000 corolla from 2000", "2000"),
     ("under 2019", None),  # 2019 excluded—year-like
     # Fix 2: decimal k-suffix
     ("1.5k budget", "1500"),
