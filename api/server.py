@@ -599,31 +599,53 @@ import re as _re
 
 def _extract_price(text: str) -> Optional[str]:
     """Try to extract a dollar amount from a natural-language prompt."""
-    # Patterns like: $20000, 20,000, 20k, max price 20000, budget 15000
+    # Mask only the year in explicit year context (not bare fallback) to avoid:
+    # - "car from 1999 under 20000" → 20000 not 1999
+    # - "under 2000 corola from 2000" → 2000 (don't mask the price occurrence)
+    # - "under 2000" → 2000 (bare \b(19xx|20xx)\b would mask it; we skip that)
+    _year_patterns = [
+        r"(?:from|since|after|min(?:imum)?\s+year|year\s+(?:from|min(?:imum)?)?)[^\d]*(19[89]\d|20\d{2})",
+        r"(19[89]\d|20\d{2})\s+(?:or\s+newer|onward|onwards|and\s+up)",
+    ]
+    for pat in _year_patterns:
+        m = _re.search(pat, text, _re.IGNORECASE)
+        if m:
+            text = text[: m.start(1)] + "____YEAR____" + text[m.end(1) :]
+            break
+
+    # Patterns like: $20000, 20k, 1.5k, under 2000, under 2,500, max price 20000, budget 15000
     patterns = [
         r"\$\s*([\d,]+(?:\.\d+)?)\s*k?\b",
+        r"\b([\d,]+(?:\.\d+)?)\s*k\b",  # 20k, 1.5k — decimal k-suffix supported
+        r"(?:under|below)\s+([\d,]+(?:\.\d+)?)\s*k?\b",  # under 2000, under 2,500 (not max—keeps 2019 excluded)
         r"(?:max(?:imum)?\s+(?:price|budget)|budget)[^\d]*([\d,]+(?:\.\d+)?)\s*k?\b",
         r"\b([\d,]+)\s*dollars?\b",
-        r"\b(?!20\d{2}\b)(\d{4,6})\b",   # bare 4-6 digit number, but NOT a year (2000-2099)
+        r"\b(?!19[89]\d\b)(?!20\d{2}\b)(\d{4,6})\b",  # bare 4-6 digit, NOT year (1980-2099)
     ]
     for pattern in patterns:
         m = _re.search(pattern, text, _re.IGNORECASE)
         if m:
             raw = m.group(1).replace(",", "")
-            # Handle "20k" → "20000"
+            # Handle "20k" / "1.5k" → "20000" / "1500"
             if m.group(0).lower().endswith("k"):
                 raw = str(int(float(raw) * 1000))
+            # under/below: reject 2001-2099 (year-like); allow 2000, 2500, 15000, etc.
+            if "under" in pattern or "below" in pattern:
+                n = int(float(raw))
+                if 2001 <= n <= 2099:
+                    continue
             return raw
     return None
 
 
 def _extract_year(text: str) -> Optional[str]:
     """Try to extract a 4-digit model year from a natural-language prompt."""
-    # Match things like: "2018 or newer", "from 2016", "minimum year 2019"
+    # Match things like: "2018 or newer", "from 1999", "minimum year 2019"
+    # Support both 19xx (1980-1999) and 20xx (2000-2099) for model years
     patterns = [
-        r"(?:from|since|after|min(?:imum)?\s+year|year\s+(?:from|min(?:imum)?)?)[^\d]*(20\d{2})",
-        r"(20\d{2})\s+(?:or\s+newer|onward|onwards|and\s+up)",
-        r"\b(20\d{2})\b",  # bare year fallback
+        r"(?:from|since|after|min(?:imum)?\s+year|year\s+(?:from|min(?:imum)?)?)[^\d]*(19[89]\d|20\d{2})",
+        r"(19[89]\d|20\d{2})\s+(?:or\s+newer|onward|onwards|and\s+up)",
+        r"\b(19[89]\d|20\d{2})\b",  # bare year fallback (1980-2099)
     ]
     for pattern in patterns:
         m = _re.search(pattern, text, _re.IGNORECASE)
