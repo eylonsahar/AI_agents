@@ -1,6 +1,7 @@
 """
 Tier 2 — Intent classifier tests (adversarial prompts).
-Expects status=error for non-car prompts.
+Expects status=error with classifier rejection (e.g. "doesn't seem to be about finding a car").
+Treats "no vehicles found" as a bypass — pipeline ran instead of rejecting.
 """
 
 import time
@@ -59,8 +60,40 @@ def run_tier2(suite, bad_prompts: List[str]) -> None:
             dur = (time.perf_counter() - t0) * 1000
             suite.pipeline_runs_used += 1
 
-            j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-            status = j.get("status", "")
+            is_json = r.headers.get("content-type", "").startswith("application/json")
+            if not is_json:
+                suite._add_result(
+                    TestResult(
+                        name="tier2_invalid_response",
+                        tier=2,
+                        passed=False,
+                        detail=f"expected JSON response, got content-type: {r.headers.get('content-type', '') or 'none'}",
+                        duration_ms=dur,
+                        prompt_used=prompt,
+                        response_snapshot=(r.text or "")[:2000] or None,
+                    )
+                )
+                suite._advance_progress()
+                continue
+
+            try:
+                j = r.json()
+            except Exception as parse_err:
+                suite._add_result(
+                    TestResult(
+                        name="tier2_invalid_json",
+                        tier=2,
+                        passed=False,
+                        detail=f"response is not valid JSON: {parse_err}",
+                        duration_ms=dur,
+                        prompt_used=prompt,
+                        response_snapshot=(r.text or "")[:2000] or None,
+                    )
+                )
+                suite._advance_progress()
+                continue
+
+            status = j.get("status")
             resp_snap = (j.get("response") or j.get("error") or "")[:2000]
             if status == "ok":
                 classifier_bypass_seen = True
@@ -75,13 +108,41 @@ def run_tier2(suite, bad_prompts: List[str]) -> None:
                         response_snapshot=resp_snap or None,
                     )
                 )
+            elif status == "error":
+                err = j.get("error", "") or ""
+                # "No vehicles found" means the pipeline ran — classifier failed to reject
+                if "no vehicles found" in err.lower() or "couldn't find any vehicles" in err.lower():
+                    classifier_bypass_seen = True
+                    suite._add_result(
+                        TestResult(
+                            name="tier2_classifier_bypass",
+                            tier=2,
+                            passed=False,
+                            detail="classifier bypass: pipeline ran (no vehicles found) instead of rejecting non-car prompt",
+                            duration_ms=dur,
+                            prompt_used=prompt,
+                            response_snapshot=resp_snap or None,
+                        )
+                    )
+                else:
+                    suite._add_result(
+                        TestResult(
+                            name="tier2_rejected",
+                            tier=2,
+                            passed=True,
+                            detail=f"correctly rejected: {err[:80]}",
+                            duration_ms=dur,
+                            prompt_used=prompt,
+                            response_snapshot=resp_snap or None,
+                        )
+                    )
             else:
                 suite._add_result(
                     TestResult(
-                        name="tier2_rejected",
+                        name="tier2_unexpected_status",
                         tier=2,
-                        passed=True,
-                        detail=f"correctly rejected: {j.get('error', '')[:80]}",
+                        passed=False,
+                        detail=f"expected status 'error' for rejection, got '{status}' (missing or unexpected)",
                         duration_ms=dur,
                         prompt_used=prompt,
                         response_snapshot=resp_snap or None,

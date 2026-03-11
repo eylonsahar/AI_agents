@@ -6,6 +6,6 @@
   ],
   "bad_prompts": [
     "Book a flight to Paris for next week.",
-    "Find apartments for rent in downtown."
+    "Find apartments for rent in downtown.  max $2,000 USD, 2015 or newer"
   ]
 }
