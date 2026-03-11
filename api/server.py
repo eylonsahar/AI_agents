@@ -599,13 +599,13 @@ import re as _re
 
 def _extract_price(text: str) -> Optional[str]:
     """Try to extract a dollar amount from a natural-language prompt."""
-    # Mask only the year in its matched context (not all occurrences) to avoid:
+    # Mask only the year in explicit year context (not bare fallback) to avoid:
     # - "car from 1999 under 20000" → 20000 not 1999
     # - "under 2000 corola from 2000" → 2000 (don't mask the price occurrence)
+    # - "under 2000" → 2000 (bare \b(19xx|20xx)\b would mask it; we skip that)
     _year_patterns = [
         r"(?:from|since|after|min(?:imum)?\s+year|year\s+(?:from|min(?:imum)?)?)[^\d]*(19[89]\d|20\d{2})",
         r"(19[89]\d|20\d{2})\s+(?:or\s+newer|onward|onwards|and\s+up)",
-        r"\b(19[89]\d|20\d{2})\b",
     ]
     for pat in _year_patterns:
         m = _re.search(pat, text, _re.IGNORECASE)
