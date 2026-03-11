@@ -58,8 +58,8 @@ class VehicleModelRetriever:
             - Dictionary with vehicles and explanation
             - Dictionary with prompt and response for logging
         """
-        rag_result = self.rag_retriever.query(query, top_k=top_n)
-        
+        rag_result = self.rag_retriever.query(self._expand_query(query), top_k=top_n)
+
         # Simple validation without retry logic
         validated_response = self._validate_response(
             response_text=rag_result.get('response', ''),
@@ -108,6 +108,40 @@ class VehicleModelRetriever:
                 'vehicles': [],
                 'explanation': f"Failed to validate response: {str(e)}"
             }
+
+    @staticmethod
+    def _expand_query(query: str) -> str:
+        """
+        Expand US body-type terms to include UK equivalents used in the Pinecone
+        knowledge base (sourced from UK automotive publications).
+        
+        Also handles luxury/premium terminology that may not exist explicitly
+        in the RAG content by expanding to premium brand indicators.
+
+        Example: "luxury sedan 2020" → "premium luxury sedan saloon BMW Mercedes Audi 2020"
+        This steers the embedding closer to UK-labelled chunks (Saloon, 4X4 etc.)
+        and premium brand content without changing the user-visible query.
+        """
+        import re as _re
+        expansions = [
+            # US term               # UK synonym(s) to append
+            (r'\bsedans?\b',        'sedan saloon'),
+            (r'\bsuvs?\b',          'SUV crossover 4X4'),
+            (r'\bcrossover\b',      'crossover 4X4 SUV'),
+            (r'\b4wds?\b',          '4WD 4X4'),
+            (r'\bwagons?\b',        'wagon estate'),
+            (r'\bstation\s+wagon\b','station wagon estate'),
+            (r'\bminivans?\b',      'minivan MPV'),
+            (r'\bpickup\b',         'pickup pick up'),
+            # Luxury/premium terms that may not exist explicitly in RAG content
+            (r'\bluxury\b',         'luxury premium executive BMW Mercedes Audi Lexus Jaguar Cadillac premium-brand high-end upscale'),
+            (r'\bpremium\b',         'premium luxury executive BMW Mercedes Audi Lexus Jaguar Cadillac high-end upscale'),
+            (r'\bexecutive\b',       'executive luxury premium BMW Mercedes Audi business-class'),
+        ]
+        q = query
+        for pattern, replacement in expansions:
+            q = _re.sub(pattern, replacement, q, flags=_re.IGNORECASE)
+        return q
 
     @staticmethod
     def format_vehicle_context(chunks: List[Dict]) -> str:
