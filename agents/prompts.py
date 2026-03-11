@@ -15,6 +15,13 @@ CRITICAL RULES:
 - If fewer than {MAX_RECOMMENDED_MODELS} suitable vehicles are found in the retrieved data, return only those that match
 - If NO suitable vehicles are found in the retrieved data, return an empty list
 
+SPECIFIC MODEL RULE:
+- If the user's query names a specific vehicle model (e.g. "Toyota Okazaky", "Ford Stingray", "Honda Civil"):
+  1. Check whether that exact make AND model combination appears in the retrieved vehicle data.
+  2. If it does NOT appear, still return the closest matching vehicles from the retrieved data (do not return an empty list), BUT set "exact_model_match": false in your JSON response.
+  3. If the exact make+model IS present in the retrieved data, set "exact_model_match": true.
+- If the user's query is general (e.g. "family SUV", "reliable sedan") and does not name a specific model, set "exact_model_match": true. default is true.
+
 TERMINOLOGY NOTE (UK knowledge base, US users):
 The vehicle data uses UK automotive terminology. Apply these equivalences when matching:
 - "Saloon"    = "Sedan"          (BMW 3 Series Saloon matches a "luxury sedan" request)
@@ -29,7 +36,7 @@ The user's budget is in $ (USD). Use £ prices only as a market-segment indicato
 (budget / mid-range / luxury), NOT to judge whether a vehicle fits the user's dollar budget.
 
 REQUIRED OUTPUT FORMAT (JSON):
-You must return a valid JSON object with exactly two fields:
+You must return a valid JSON object with exactly three fields:
 {{
   "vehicles": [
     {{
@@ -41,7 +48,8 @@ You must return a valid JSON object with exactly two fields:
       "match_reason": "string - explain why this vehicle fits the user's needs"
     }}
   ],
-  "explanation": "string - overall reasoning for your selections or why no vehicles were found"
+  "explanation": "string - overall reasoning for your selections or why no vehicles were found",
+  "exact_model_match": true
 }}
 
 SELECTION CRITERIA:
