@@ -15,7 +15,7 @@ Usage:
   python -m validation.test_auto_suite --tiers 2 3 --replay validation/samples/saved_prompts_sample.json
 
   With --random [N]: N is the number of prompts to generate per agent (default 6).
-  Tier 3 generates N total: floor(N*3/4) normal good prompts + floor(N/4) inexact-model prompts.
+  Tier 3 generates N total: (N - floor(N/4)) normal good prompts + floor(N/4) inexact-model prompts.
 """
 
 import argparse
@@ -376,7 +376,7 @@ def main() -> None:
         const=6,
         default=None,
         metavar="N",
-        help="Use LLM to generate N random prompts per agent (default 6). Tier 3 uses floor(N*3/4) normal + floor(N/4) inexact-model prompts.",
+        help="Use LLM to generate N random prompts per agent (default 6). Tier 3 uses (N - floor(N/4)) normal + floor(N/4) inexact-model prompts.",
     )
     parser.add_argument("--replay", type=str, default=None, help="Replay prompts from saved JSON file")
     parser.add_argument("--budget", type=float, default=3.0, help="Budget limit in USD for pipeline runs")

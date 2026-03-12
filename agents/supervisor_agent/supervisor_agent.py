@@ -216,33 +216,39 @@ class AgentSupervisor:
         "compact", "midsize", "full", "large", "small", "cheap", "affordable",
     })
 
-    def _detect_inexact_model(self, query: str, vehicles: list) -> bool:
+    def _detect_inexact_model(self, query: str, vehicles: list) -> Optional[str]:
         """
-        Return True when the user's query names a specific make+model that is
-        NOT present in the returned vehicles (i.e. we are substituting).
+        Return the unmatched token (as typed by the user) when the query names
+        a make+model combination not present in the returned vehicles, or when
+        the brand name itself appears to be a typo of a returned make.
+        Returns None when the query matches the results well enough.
 
         Algorithm (pure Python, no LLM):
-          1. Collect the makes of all returned vehicles.
-          2. For each make found verbatim in the query, extract the word that
-             immediately follows it.
-          3. If that word looks like a model name (not a generic term) and does
-             not appear inside any returned model name for that make → inexact.
+          1. Collect the (make, model) pairs of all returned vehicles.
+          2. Exact-make pass: for each returned make that appears verbatim in
+             the query, extract the word immediately following it.  If that word
+             looks like a model name (not a generic term) and is not a substring
+             of any returned model for that make → return "<make> <queried_word>".
+          3. Fuzzy-brand pass: for each query word that did NOT match any make
+             exactly, check if it is close (≥ 0.75 similarity) to a returned make.
+             If so, the user typed a brand typo (e.g. "hunda" → "honda") — return
+             the original query token(s) so the caller can surface a note.
         """
         import re as _re
+        from difflib import get_close_matches
+
         if not vehicles or not query:
-            return False
+            return None
 
         query_lower = query.lower()
         returned_pairs = [
             (v.get("make", "").lower().strip(), v.get("model", "").lower().strip())
             for v in vehicles
         ]
-        returned_makes = {make for make, _ in returned_pairs}
+        returned_makes = {make for make, _ in returned_pairs if make}
 
+        # --- Pass 1: exact make match, check model word ---
         for make in returned_makes:
-            if not make:
-                continue
-            # Find "<make> <next_word>" in the query
             m = _re.search(
                 r"\b" + _re.escape(make) + r"\s+([a-zA-Z0-9]+)",
                 query_lower,
@@ -252,16 +258,28 @@ class AgentSupervisor:
             queried_word = m.group(1).lower()
             if queried_word in self._NON_MODEL_WORDS:
                 continue
-            # Check whether this word appears in ANY returned model for that make
             model_matched = any(
                 queried_word in model
                 for ret_make, model in returned_pairs
                 if ret_make == make
             )
             if not model_matched:
-                return True  # user asked for a specific model we don't have
+                return f"{make} {queried_word}"
 
-        return False
+        # --- Pass 2: fuzzy brand match — catches brand typos like "hunda civic" ---
+        query_words = _re.findall(r"[a-zA-Z0-9]+", query_lower)
+        for i, word in enumerate(query_words):
+            if word in returned_makes:
+                continue  # exact match already handled above
+            close = get_close_matches(word, returned_makes, n=1, cutoff=0.75)
+            if not close:
+                continue
+            # word is a typo of a make; include the following model word if present
+            if i + 1 < len(query_words) and query_words[i + 1] not in self._NON_MODEL_WORDS:
+                return f"{word} {query_words[i + 1]}"
+            return word
+
+        return None
 
     def _action_search_vehicle_models(self) -> str:
         """Search for matching vehicle models using the RAG pipeline (Pinecone + LLM)."""
@@ -279,13 +297,9 @@ class AgentSupervisor:
             self.vehicle_models = result.get("vehicles", [])
 
             # Pure-Python inexact-model detection (does not rely on LLM flag)
-            if self.vehicle_models and self._detect_inexact_model(query, self.vehicle_models):
-                description = (
-                    self.user_requirements.get("description", "")
-                    or self.user_requirements.get("full_query", query)
-                    if self.user_requirements else query
-                )
-                self._inexact_model_note = description
+            unmatched_token = self._detect_inexact_model(query, self.vehicle_models) if self.vehicle_models else None
+            if unmatched_token:
+                self._inexact_model_note = unmatched_token
 
             # Log full vehicle model details in the trace
             vehicle_detail_lines = []
