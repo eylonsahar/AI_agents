@@ -37,6 +37,13 @@ class VehicleRecommendationResponse(BaseModel):
         description=f"List of recommended vehicles (up to {MAX_RECOMMENDED_MODELS})"
     )
     explanation: str = Field(..., description="Overall reasoning for the recommendations")
+    exact_model_match: bool = Field(
+        default=True,
+        description=(
+            "False when the user requested a specific make+model that was not found in the "
+            "retrieved data and alternatives are being returned instead."
+        ),
+    )
     
     @field_validator('vehicles')
     @classmethod

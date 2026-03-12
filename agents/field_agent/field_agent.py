@@ -29,7 +29,8 @@ from gateways.llm_gateway import LLMGateway
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from config import (NUM_AVAILABLE_DATES, MEETING_DURATION, MEETING_TIMEFRAME,
-                    GUARANTEED_MISSING_FIELDS, CRITICAL_FIELDS, MAX_DECISION_ITERATIONS)
+                    GUARANTEED_MISSING_FIELDS, CRITICAL_FIELDS, MAX_DECISION_ITERATIONS,
+                    MIN_VALID_PRICE)
 
 load_dotenv()
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
@@ -227,7 +228,11 @@ class FieldAgent:
         return "\n".join(state_parts)
 
     def _identify_missing_fields(self, listing: dict) -> List[str]:
-        """Return the list of critical fields that are missing or empty."""
+        """Return the list of critical fields that are missing or empty.
+
+        A price below MIN_VALID_PRICE ($0, $1, etc.) is treated as missing
+        data and flagged so the field agent validates it with the seller.
+        """
         missing = []
         all_critical = list(GUARANTEED_MISSING_FIELDS) + [
             f for f in CRITICAL_FIELDS if f not in GUARANTEED_MISSING_FIELDS
@@ -236,6 +241,12 @@ class FieldAgent:
             val = listing.get(field)
             if val is None or val == "" or val == "Not Provided":
                 missing.append(field)
+            elif field == "price":
+                try:
+                    if float(val) < MIN_VALID_PRICE:
+                        missing.append(field)
+                except (ValueError, TypeError):
+                    missing.append(field)
         return list(set(missing))
 
     def _find_listing_by_id(self, listing_id: str) -> Tuple[Optional[dict], Optional[dict]]:

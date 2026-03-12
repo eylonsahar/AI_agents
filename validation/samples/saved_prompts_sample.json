@@ -5,7 +5,11 @@
     "Searching for a midsize SUV with AWD, budget up to $25,000."
   ],
   "bad_prompts": [
-    "Book a flight to Paris for next week.",
-    "Find apartments for rent in downtown.  max $2,000 USD, 2015 or newer"
+    "motorcycle under $3,000, from 2021",
+    "Find apartments for rent in downtown. max $2,000 USD, 2015 or newer"
+  ],
+  "inexact_prompts": [
+    "Toyota Okozaky under $30,000, 2020 or newer",
+    "Hunda Civicxs, max $18,000, 2019 or newer"
   ]
 }

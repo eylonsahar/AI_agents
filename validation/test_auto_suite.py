@@ -11,11 +11,11 @@ Tiers:
 Usage:
   python -m validation.test_auto_suite --tiers 0 1 --url http://localhost:8001
   python -m validation.test_auto_suite --tiers 0 1 2 3 --random --budget 3.0
-  python -m validation.test_auto_suite --tiers 0 1 2 3 --random 9 --budget 3.0
+  python -m validation.test_auto_suite --tiers 0 1 2 3 --random 8 --budget 3.0
   python -m validation.test_auto_suite --tiers 2 3 --replay validation/samples/saved_prompts_sample.json
 
-  With --random [N]: N is the number of prompts to generate (default 6).
-  If Tier 2 is enabled, N must be divisible by 3 (BadUserAgent splits into 3 categories).
+  With --random [N]: N is the number of prompts to generate per agent (default 6).
+  Tier 3 generates N total: (N - floor(N/4)) normal good prompts + floor(N/4) inexact-model prompts.
 """
 
 import argparse
@@ -77,6 +77,7 @@ class AItzikTestSuite:
         num_examples: int = 6,
     ) -> None:
         good_prompts: List[str] = []
+        inexact_prompts: List[str] = []
         bad_prompts: List[str] = []
 
         if replay_file and os.path.isfile(replay_file):
@@ -84,6 +85,7 @@ class AItzikTestSuite:
                 data = json.load(f)
                 good_prompts = data.get("good_prompts", [])
                 bad_prompts = data.get("bad_prompts", [])
+                inexact_prompts = data.get("inexact_prompts", [])
         elif random_mode and (2 in tiers or 3 in tiers):
             if 2 in tiers:
                 from .bad_user_agent import BadUserAgent
@@ -94,11 +96,15 @@ class AItzikTestSuite:
                 from .good_user_agent import GoodUserAgent
 
                 good_agent = GoodUserAgent()
-                good_prompts = good_agent.generate(num_examples)
+                n_inexact = num_examples // 4
+                n_normal = num_examples - n_inexact
+                good_prompts = good_agent.generate(n_normal)
+                inexact_prompts = good_agent.generate_inexact(n_inexact)
             self.saved_prompts = {
                 "generated_at": datetime.now().isoformat(),
                 "good_prompts": good_prompts,
                 "bad_prompts": bad_prompts,
+                "inexact_prompts": inexact_prompts,
             }
         else:
             if 2 in tiers:
@@ -126,7 +132,7 @@ class AItzikTestSuite:
             total_steps += get_tier2_step_count(bad_prompts)
         if 3 in tiers:
             from .tier3 import get_fixed_step_count
-            total_steps += get_fixed_step_count() + len(good_prompts)
+            total_steps += get_fixed_step_count() + len(good_prompts) + len(inexact_prompts)
 
         from tqdm import tqdm
 
@@ -188,7 +194,7 @@ class AItzikTestSuite:
                 try:
                     from .tier3 import run_tier3
 
-                    run_tier3(self, good_prompts)
+                    run_tier3(self, good_prompts, inexact_prompts)
                 except Exception as e:
                     import traceback
 
@@ -370,7 +376,7 @@ def main() -> None:
         const=6,
         default=None,
         metavar="N",
-        help="Use LLM to generate N random prompts (default 6). With Tier 2, N must be divisible by 3.",
+        help="Use LLM to generate N random prompts per agent (default 6). Tier 3 uses (N - floor(N/4)) normal + floor(N/4) inexact-model prompts.",
     )
     parser.add_argument("--replay", type=str, default=None, help="Replay prompts from saved JSON file")
     parser.add_argument("--budget", type=float, default=3.0, help="Budget limit in USD for pipeline runs")
@@ -379,16 +385,6 @@ def main() -> None:
 
     random_mode = args.random is not None
     num_examples = args.random if args.random is not None else 6
-
-    # Validate before heavy phases: Tier 2 BadUserAgent requires num_examples % 3 == 0
-    if random_mode and 2 in args.tiers and num_examples % 3 != 0:
-        print(
-            f"Error: With --random and Tier 2, the number of examples must be divisible by 3.\n"
-            f"  You specified: --random {num_examples}\n"
-            f"  Please change to e.g. --random {((num_examples // 3) + 1) * 3} or --random {(num_examples // 3) * 3}\n"
-            f"  Aborting before starting heavy script phases."
-        )
-        sys.exit(1)
 
     suite = AItzikTestSuite(base_url=args.url, budget_limit_usd=args.budget)
     suite.run(

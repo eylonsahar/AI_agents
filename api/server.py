@@ -180,8 +180,10 @@ def _check_is_car_search(prompt: str, description: str, llm_gateway) -> bool:
             prompt=(
                 "You are a request classifier. "
                 "Answer ONLY with the single word 'yes' or 'no'. "
-                "'yes' = the request is about finding / buying a used car or vehicle. "
-                "'no' = the request is about anything else.\n\n"
+                "'yes' = the request is about finding or buying a car or vehicle (used or unspecified). "
+                "Note: 'vehicle' is often used as a synonym for 'car' — electric vehicles, family vehicles, etc. should all be 'yes'. "
+                "'no' = the request is clearly NOT a car: motorcycles, motorbikes, heavy-duty commercial trucks (e.g. F-350, semi trucks), "
+                "RVs, motorhomes, boats, car parts, or anything unrelated to cars.\n\n"
                 f"Is this a car search request? Request: '{text}'"
             )
         )
@@ -499,10 +501,18 @@ def execute(body: ExecuteRequest, stream: bool = False):
             }) + "\n"
             return
 
+        response_text = _format_results_as_text(result.get("results", []))
+        if result.get("inexact_model_note"):
+            note = result["inexact_model_note"]
+            response_text = (
+                f"⚠️  No exact match found for '{note}' in our database. "
+                f"Here are the closest vehicles we could find:\n\n"
+            ) + response_text
+
         yield _json.dumps({
             "status":   "ok",
             "error":    None,
-            "response": _format_results_as_text(result.get("results", [])),
+            "response": response_text,
             "steps":    _normalize_steps(result.get("steps", [])),
         }) + "\n"
 
@@ -578,10 +588,19 @@ def _run_blocking(body, _extract_price, _extract_year,
                               "Try broader keywords, e.g. 'SUV', 'sedan', or a specific make."),
                     "response": None,
                     "steps": _normalize_steps(result.get("steps", []))}
+
+        response_text = _format_results_as_text(result.get("results", []))
+        if result.get("inexact_model_note"):
+            note = result["inexact_model_note"]
+            response_text = (
+                f"⚠️  No exact match found for '{note}' in our database. "
+                f"Here are the closest vehicles we could find:\n\n"
+            ) + response_text
+
         return {
             "status":   "ok",
             "error":    None,
-            "response": _format_results_as_text(result.get("results", [])),
+            "response": response_text,
             "steps":    _normalize_steps(result.get("steps", []))
         }
     except Exception as exc:
