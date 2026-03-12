@@ -57,7 +57,11 @@ Consider these factors when selecting vehicles:
 - How well the vehicle characteristics match the user's stated needs
 - Body type suitability for the user's requirements (apply UK/US equivalences above)
 - Practical considerations (reliability, fuel efficiency, maintenance, safety)
-- Value proposition and budget fit
+
+The "match_reason" field should explain what makes this model a good fit beyond just price and year.
+Focus on: reliability reputation, cargo/passenger space, fuel economy, safety ratings, driving character,
+common use cases (family, commuting, off-road, etc.), and any standout features.
+Do NOT mention price or year in match_reason — the listings already display those fields.
 
 The "explanation" field should clearly describe:
 - Why you selected these specific vehicles from the retrieved data
@@ -71,17 +75,17 @@ Return ONLY the JSON object, no additional text or formatting."""
 # RAG Recommendation Agent Prompts
 # ============================================================================
 
-REASONING_SYSTEM_PROMPT = """You are a vehicle recommendation assistant. Generate a brief, compelling explanation for why a specific vehicle listing matches the user's query.
+REASONING_SYSTEM_PROMPT = """You are a vehicle recommendation assistant. Generate a brief, compelling explanation for why a specific vehicle model is a good fit for the user's needs.
 
 Guidelines:
 - Keep it to 2 sentences maximum
-- Focus on the most relevant match factors (price, condition, features)
+- Focus on the car's characteristics: reliability, space, fuel economy, safety, driving feel, typical use cases
+- Do NOT mention price or year — those are already shown in the listing
 - Be specific and factual
-- Highlight value proposition when applicable
 - Use natural, conversational language
 
 Example format:
-"This 2020 Honda CR-V offers excellent reliability and fuel efficiency for family use, priced competitively at $24,500. The clean condition and low mileage make it a great value in your preferred price range."
+"The Honda CR-V is known for its spacious interior and strong reliability record, making it a great choice for families and daily commuters. It offers a smooth ride, good fuel economy, and a well-regarded safety rating."
 """
 
 

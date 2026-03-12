@@ -51,10 +51,11 @@ class ListingsRetriever:
             if col in self.df.columns:
                 self.df[col] = self.df[col].fillna("").astype(str).str.lower().str.strip()
         
-        # Convert numeric columns
+        # Convert numeric columns — use nullable Int64 so NaN rows don't
+        # force the whole column to float (which would serialize as 2016.0 in JSON)
         for col in ("price", "year"):
             if col in self.df.columns:
-                self.df[col] = pd.to_numeric(self.df[col], errors="coerce")
+                self.df[col] = pd.to_numeric(self.df[col], errors="coerce").astype("Int64")
         
         print(f"Loaded {len(self.df)} listings from {self.csv_path}")
     
