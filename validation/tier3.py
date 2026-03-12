@@ -43,8 +43,10 @@ def validate_response_schema(j: dict) -> Tuple[bool, str]:
     return True, "ok"
 
 
-def run_tier3(suite, good_prompts: List[str], inexact_prompts: List[str] = []) -> None:
+def run_tier3(suite, good_prompts: List[str], inexact_prompts: List[str] = None) -> None:
     """Tier 3: full pipeline tests with fixed edge cases + optional random prompts."""
+    if inexact_prompts is None:
+        inexact_prompts = []
     base = suite.base_url.rstrip("/")
 
     for name, body, expect_error in FIXED_CASES:
