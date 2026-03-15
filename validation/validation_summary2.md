@@ -299,15 +299,15 @@ The model header is empty (`━━   ━━`) and the reasoning is a placeholder
 | 4 | Pipeline hangs indefinitely on some prompts (>10 min timeout) | 🔴 HIGH | ★★★ HARD | Tier 3 failure | Eylon | low-budget prompts pattern | ❌ |
 | 5 | Motorbikes / work trucks / RVs bypass intent classifier | 🟠 MEDIUM | ★★ MEDIUM | Tier 2 suspicious pass | Ron | motorcycle/truck/rental fixed; RV still open | 🔄 |
 | 6 | Returned listings violate `min_year` constraint | 🔴 HIGH | ★★ MEDIUM | Tier 3 suspicious pass | Eylon | | ✅ |
-| 7 | Listings with prices $0, $1, $189, $296 returned to users | 🟠 MEDIUM | ★ EASY | Tier 3 suspicious pass | Ron | field agent validation needed | ❌ |
+| 7 | Listings with prices $0, $1, $189, $296 returned to users | 🟠 MEDIUM | ★ EASY | Tier 3 suspicious pass | Ron | field agent validation needed | ✅ |
 | 8 | Luxury sedan category has zero data coverage | 🟡 LOW | ★★★ HARD | Tier 3 failure | Eylon | partially improved | 🔄 |
 | 9 | `explicit_fields` path also violates year filter | 🔴 HIGH | ★★ MEDIUM | Tier 3 suspicious pass | Eylon | fixed with #6 | ✅ |
 | 10 | RAG uses UK sources (Euro NCAP, mpg, £ pricing context) | 🟠 MEDIUM | ★★ MEDIUM | Tier 3 suspicious pass | Ron | supervisor prompt | ✅❌ |
 | **11** | **Rental request bypasses classifier** | 🔴 HIGH | ★ EASY | Tier 2 bypass | Ron | explicit `no` example added to classifier prompt | ✅ |
-| **12** | **`module_name_consistency` graded requirement FAIL** | 🟠 MEDIUM | ★ EASY | Tier 0 graded | Ron/Eylon | grep module declarations | ❌ |
-| **13** | **Inexact search extracts wrong token as model name** | 🟠 MEDIUM | ★★ MEDIUM | Tier 3 suspicious pass | Eylon | "for towing", "min year" as model | ❌ |
+| **12** | **`module_name_consistency` graded requirement FAIL** | 🟠 MEDIUM | ★ EASY | Tier 0 graded | Ron/Eylon | grep module declarations | ✅ |
+| **13** | **Inexact search extracts wrong token as model name** | 🟠 MEDIUM | ★★ MEDIUM | Tier 3 suspicious pass | Ron | "for towing", "min year" as model | ❌ |
 | **14** | **Fuzzy match returns completely wrong vehicle category (Silverado → Audi Q5)** | 🔴 HIGH | ★★★ HARD | Tier 3 suspicious pass | Eylon | downstream of Bug #13 | ❌ |
-| **15** | **Empty model name + placeholder reasoning in inexact response** | 🟠 MEDIUM | ★★ MEDIUM | Tier 3 suspicious pass | Eylon | `━━   ━━` / "Matches your criteria" | ❌ |
+| **15** | **Empty model name + placeholder reasoning in inexact response** | 🟠 MEDIUM | ★★ MEDIUM | Tier 3 suspicious pass | Ron | `━━   ━━` / "Matches your criteria" | ❌ |
 | **16** | **Classifier FN: pickup/towing prompt wrongly rejected** | 🟡 LOW | ★ EASY | Classifier check FN | Ron | explicit `yes` example added to classifier prompt | ✅ |
 | **17** | **6/9 pipeline runs exceed efficiency step threshold** | 🟠 MEDIUM | ★★★ HARD | Tier 3 efficiency | Eylon | likely driven by Bug #13 loop | ❌ |
 
