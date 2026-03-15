@@ -135,13 +135,14 @@ class FieldAgent:
         self.processed_listings: Dict[str, str] = {}
         self.completed_listings: List[str] = []
         self.iteration_count = 0
+        self._price_unrealistic_cache: Dict[str, bool] = {}
 
         # Build the LangChain ReAct agent
-        llm = LLMGateway(api_key=OPENAI_API_KEY).client
+        self.llm = LLMGateway(api_key=OPENAI_API_KEY).client
         tools = make_field_agent_tools(self)
 
         agent = create_react_agent(
-            llm=llm,
+            llm=self.llm,
             tools=tools,
             prompt=FIELD_AGENT_REACT_PROMPT,
         )
@@ -230,8 +231,11 @@ class FieldAgent:
     def _identify_missing_fields(self, listing: dict) -> List[str]:
         """Return the list of critical fields that are missing or empty.
 
-        A price below MIN_VALID_PRICE ($0, $1, etc.) is treated as missing
-        data and flagged so the field agent validates it with the seller.
+        Price validity is checked in two stages:
+        1. Hard limit: price < MIN_VALID_PRICE → always treated as missing.
+        2. Semantic check: price >= MIN_VALID_PRICE but still implausible for
+           this specific make/model/year (e.g. $650 for a 2019 Tesla Model 3)
+           → LLM-assessed, result cached per listing_id.
         """
         missing = []
         all_critical = list(GUARANTEED_MISSING_FIELDS) + [
@@ -243,11 +247,60 @@ class FieldAgent:
                 missing.append(field)
             elif field == "price":
                 try:
-                    if float(val) < MIN_VALID_PRICE:
+                    price_val = float(val)
+                    if price_val < MIN_VALID_PRICE:
+                        missing.append(field)
+                    elif self._is_price_unrealistic(listing):
                         missing.append(field)
                 except (ValueError, TypeError):
                     missing.append(field)
         return list(set(missing))
+
+    def _is_price_unrealistic(self, listing: dict) -> bool:
+        """Ask the LLM whether the listed price is plausible for this vehicle.
+
+        Uses a simple YES/NO prompt. Result is cached by listing_id so each
+        listing is assessed at most once per FieldAgent run.
+        """
+        listing_id = str(listing.get("id", ""))
+        if listing_id in self._price_unrealistic_cache:
+            return self._price_unrealistic_cache[listing_id]
+
+        make = listing.get("manufacturer", "")
+        model = listing.get("model", "")
+        year = listing.get("year", "")
+        price = listing.get("price", "")
+
+        if not all([make, model, year, price]):
+            self._price_unrealistic_cache[listing_id] = False
+            return False
+
+        prompt = (
+            f"A used {year} {make} {model} is listed for sale at ${price}.\n"
+            f"Is this price clearly unrealistic for the US used-car market?\n"
+            f"Answer with exactly one word: YES if clearly unrealistic, NO if plausible.\n"
+            f"Example: YES for a 2019 Tesla Model 3 listed at $650."
+        )
+
+        raw_answer = "error"
+        try:
+            response = self.llm.invoke(prompt)
+            raw_answer = (
+                response.content if hasattr(response, "content") else str(response)
+            ).strip().upper()
+            is_unrealistic = raw_answer.startswith("YES")
+        except Exception:
+            is_unrealistic = False
+
+        self.action_log.add_step(
+            module="FieldAgent",
+            submodule="PriceValidation",
+            prompt=prompt,
+            response=f"{'UNREALISTIC' if is_unrealistic else 'PLAUSIBLE'} — raw answer: {raw_answer}",
+        )
+
+        self._price_unrealistic_cache[listing_id] = is_unrealistic
+        return is_unrealistic
 
     def _find_listing_by_id(self, listing_id: str) -> Tuple[Optional[dict], Optional[dict]]:
         """Return (listing, vehicle_context) for the given ID, or (None, None) if not found."""
