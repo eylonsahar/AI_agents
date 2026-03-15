@@ -484,7 +484,7 @@ class AgentSupervisor:
                         )
                     self.action_log.add_step(
                         module="SearchPipeline",
-                        submodule="DecisionAgent (final re-ranking)",
+                        submodule="DecisionAgent",
                         prompt=f"Re-rank {len(enriched_listings)} fully enriched listings",
                         response="\n".join(ranking_lines),
                     )
