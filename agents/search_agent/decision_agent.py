@@ -4,6 +4,9 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from agents.utils.contracts import VehicleListing, VehicleModel, VehicleModelsResult, ScoredListing
+from config import SUSPICIOUS_PRICE_THRESHOLD
+
+SUSPICIOUS_PRICE_PENALTY = 0.3  # Multiplier applied to listing_score for suspicious-price cars
 
 
 
@@ -91,6 +94,7 @@ def score_listings(listings: List[VehicleListing]) -> Dict[int, Tuple[float, Lis
         if price <= 0:
             results[idx] = (0.0, ["Invalid or missing price"])
             continue
+        suspicious_price = price < SUSPICIOUS_PRICE_THRESHOLD
         price_score = 1 - min_max_norm(price, min_price, max_price)
 
         # Year scoring
@@ -134,8 +138,13 @@ def score_listings(listings: List[VehicleListing]) -> Dict[int, Tuple[float, Lis
             0.10 * accident_score
         )
 
+        # Suspicious price penalty — applied before generating reasons
+        if suspicious_price:
+            listing_score *= SUSPICIOUS_PRICE_PENALTY
+            reasons.append(f"⚠️ Suspicious price (${price:.0f}) — could not be verified with seller")
+
         # Generate reasons
-        if price_score >= 0.7:
+        if price_score >= 0.7 and not suspicious_price:
             reasons.append("Competitive price")
         if year_score >= 0.7:
             reasons.append("Newer model year")
