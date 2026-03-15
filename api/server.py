@@ -149,6 +149,11 @@ class ExecuteRequest(BaseModel):
     description: Optional[str] = None
 
 
+class ClassifyRequest(BaseModel):
+    prompt: str
+    description: Optional[str] = None
+
+
 class StepSchema(BaseModel):
     module: str
     prompt: Any
@@ -179,12 +184,16 @@ def _check_is_car_search(prompt: str, description: str, llm_gateway) -> bool:
         response_text, _ = llm_gateway.call_llm(
             prompt=(
                 "You are a request classifier. "
-                "Answer ONLY with the single word 'yes' or 'no'. "
-                "'yes' = the request is about finding or buying a car or vehicle (used or unspecified). "
-                "Note: 'vehicle' is often used as a synonym for 'car' — electric vehicles, family vehicles, etc. should all be 'yes'. "
-                "'no' = the request is clearly NOT a car: motorcycles, motorbikes, heavy-duty commercial trucks (e.g. F-350, semi trucks), "
-                "RVs, motorhomes, boats, car parts, or anything unrelated to cars.\n\n"
-                f"Is this a car search request? Request: '{text}'"
+                "Answer ONLY with the single word 'yes' or 'no'.\n"
+                "'yes' = the request is about finding or buying a car or passenger vehicle "
+                "(including electric vehicles, SUVs, family cars, etc.).\n"
+                "'no' = everything else: motorcycles, trucks, selling a car, unrelated topics.\n\n"
+                "examples:\n"
+                "yes: I'm looking for a reliable family SUV, prefer silver or white\n"
+                "yes: Crew-cab pickup for towing and hauling, up to $30,000, min year 2017+.\n"
+                "no: Rent a midsize SUV 2018 or newer for one week, budget $60/day, pickup 2025-06-01\n"
+                "no:  Create a listing to sell my 2016 Honda Civic for $12,500 USD, include photos and service history\n"
+                f"Request: '{text}'"
             )
         )
         return "yes" in response_text.strip().lower()[:10]
@@ -390,6 +399,18 @@ def model_architecture():
         media_type="image/png",
         filename="model_architecture.png",
     )
+
+@app.post("/api/classify")
+def classify(body: ClassifyRequest):
+    """
+    Lightweight classifier-only check.
+    Returns {"is_car_search": true/false} without running the pipeline.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    llm_gateway = LLMGateway.get_instance(api_key=api_key)
+    is_car = _check_is_car_search(body.prompt, body.description or "", llm_gateway)
+    return JSONResponse({"is_car_search": is_car})
+
 
 @app.post("/api/execute")
 def execute(body: ExecuteRequest, stream: bool = False):
