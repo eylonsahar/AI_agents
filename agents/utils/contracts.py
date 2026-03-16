@@ -86,7 +86,7 @@ class VehicleListing:
     id: str
     region: Optional[str] = None
     price: Optional[float] = None
-    year: Optional[float] = None
+    year: Optional[int] = None
     condition: Optional[str] = None
     paint_color: Optional[str] = None
     state: Optional[str] = None
@@ -106,7 +106,7 @@ class VehicleListing:
             id=str(data.get('id', '')),
             region=data.get('region'),
             price=data.get('price'),
-            year=data.get('year'),
+            year=int(v) if (v := data.get('year')) is not None and str(v) not in ('', '<NA>') else None,
             condition=data.get('condition'),
             paint_color=data.get('paint_color'),
             state=data.get('state'),

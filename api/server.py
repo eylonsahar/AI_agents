@@ -149,6 +149,11 @@ class ExecuteRequest(BaseModel):
     description: Optional[str] = None
 
 
+class ClassifyRequest(BaseModel):
+    prompt: str
+    description: Optional[str] = None
+
+
 class StepSchema(BaseModel):
     module: str
     prompt: Any
@@ -179,12 +184,16 @@ def _check_is_car_search(prompt: str, description: str, llm_gateway) -> bool:
         response_text, _ = llm_gateway.call_llm(
             prompt=(
                 "You are a request classifier. "
-                "Answer ONLY with the single word 'yes' or 'no'. "
-                "'yes' = the request is about finding or buying a car or vehicle (used or unspecified). "
-                "Note: 'vehicle' is often used as a synonym for 'car' — electric vehicles, family vehicles, etc. should all be 'yes'. "
-                "'no' = the request is clearly NOT a car: motorcycles, motorbikes, heavy-duty commercial trucks (e.g. F-350, semi trucks), "
-                "RVs, motorhomes, boats, car parts, or anything unrelated to cars.\n\n"
-                f"Is this a car search request? Request: '{text}'"
+                "Answer ONLY with the single word 'yes' or 'no'.\n"
+                "'yes' = the request is about finding or buying a car or passenger vehicle "
+                "(including electric vehicles, SUVs, family cars, and consumer pickup trucks used as personal vehicles).\n"
+                "'no' = everything else: motorcycles, heavy-duty/commercial trucks, cargo vans, selling a car, rentals, or unrelated topics.\n\n"
+                "examples:\n"
+                "yes: I'm looking for a reliable family SUV, prefer silver or white\n"
+                "yes: Crew-cab pickup for towing and hauling, up to $30,000, min year 2017+.\n"
+                "no: Rent a midsize SUV 2018 or newer for one week, budget $60/day, pickup 2025-06-01\n"
+                "no:  Create a listing to sell my 2016 Honda Civic for $12,500 USD, include photos and service history\n"
+                f"Request: '{text}'"
             )
         )
         return "yes" in response_text.strip().lower()[:10]
@@ -321,13 +330,13 @@ def agent_info():
                     "The description emphasizes roomy second and third rows, flexible interior space and family-friendly "
                     "equipment, directly matching the request for a reliable family SUV.\n\n"
                     "  Option #1:\n"
-                    "    • Region: ocala\n    • Price: 14500\n    • Year: 2018.0\n    • Condition: excellent\n"
+                    "    • Region: ocala\n    • Price: 14500\n    • Year: 2018\n    • Condition: excellent\n"
                     "    • Paint Color: blue\n    • State: fl\n    • Accident: none\n    • Mileage: 84200\n"
                     "    📅 Schedule a viewing:\n"
                     "       🔗 2026-03-05 18:15: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+hyundai+santa+fe&dates=20260305T181500%2F20260305T184500&details=Car+ID%3A+7315970890&sf=true\n"
                     "       🔗 2026-03-08 11:30: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+hyundai+santa+fe&dates=20260308T113000%2F20260308T120000&details=Car+ID%3A+7315970890&sf=true\n\n"
                     "  Option #2:\n"
-                    "    • Region: inland empire\n    • Price: 19900\n    • Year: 2019.0\n    • Condition: excellent\n"
+                    "    • Region: inland empire\n    • Price: 19900\n    • Year: 2019\n    • Condition: excellent\n"
                     "    • Paint Color: red\n    • State: ca\n    • Accident: 2021-08-14\n    • Mileage: 84250\n"
                     "    📅 Schedule a viewing:\n"
                     "       🔗 2026-03-04 18:00: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+hyundai+santa+fe&dates=20260304T180000%2F20260304T183000&details=Car+ID%3A+7316590169&sf=true\n"
@@ -337,7 +346,7 @@ def agent_info():
                     "and pricing ranges show many examples available at or below £22,000. The Outlander is described "
                     "as a good-value, well-equipped large SUV with family appeal and a five-star Euro NCAP rating.\n\n"
                     "  Option #3:\n"
-                    "    • Region: columbus\n    • Price: 18997\n    • Year: 2019.0\n    • Condition: excellent\n"
+                    "    • Region: columbus\n    • Price: 18997\n    • Year: 2019\n    • Condition: excellent\n"
                     "    • Paint Color: grey\n    • State: oh\n    • Accident: none\n    • Mileage: 85200\n"
                     "    📅 Schedule a viewing:\n"
                     "       🔗 2026-03-06 18:00: https://www.google.com/calendar/render?action=TEMPLATE&text=View+Car%3A+mitsubishi+outlander&dates=20260306T180000%2F20260306T183000&details=Car+ID%3A+7317007116&sf=true\n"
@@ -368,7 +377,7 @@ def agent_info():
                     {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7316872707: accident, mileage", "response": "mileage = 84250\naccident = 2021-08-15\npaint_color = silver\nstate = CA\nid = 7316872707"},
                     {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-08 11:00\n2026-03-11 18:30"},
                     {"module": "FieldAgent / FinalAnswer", "prompt": "", "response": "Completed processing for 6 listings. Missing fields filled and meetings scheduled (2 slots each) for listings: 7316590169, 7315970890, 7315719756, 7317007116, 7316941545, 7316872707."},
-                    {"module": "SearchPipeline / DecisionAgent (final re-ranking)", "prompt": "Re-rank 6 fully enriched listings", "response": "#1: hyundai santa fe (2018.0, $14500) | score: 0.79\n#2: hyundai santa fe (2019.0, $19900) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71\n#4: mitsubishi outlander (2014.0, $8995) | score: 0.69\n#5: mitsubishi outlander (2014.0, $3999) | score: 0.63\n#6: hyundai santa fe (2018.0, $27675) | score: 0.51"},
+                    {"module": "SearchPipeline / DecisionAgent", "prompt": "Re-rank 6 fully enriched listings", "response": "#1: hyundai santa fe (2018.0, $14500) | score: 0.79\n#2: hyundai santa fe (2019.0, $19900) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71\n#4: mitsubishi outlander (2014.0, $8995) | score: 0.69\n#5: mitsubishi outlander (2014.0, $3999) | score: 0.63\n#6: hyundai santa fe (2018.0, $27675) | score: 0.51"},
                     {"module": "Supervisor / FinalAnswer", "prompt": "", "response": "Mission complete."}
                 ]
             }
@@ -390,6 +399,18 @@ def model_architecture():
         media_type="image/png",
         filename="model_architecture.png",
     )
+
+@app.post("/api/classify")
+def classify(body: ClassifyRequest):
+    """
+    Lightweight classifier-only check.
+    Returns {"is_car_search": true/false} without running the pipeline.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    llm_gateway = LLMGateway.get_instance(api_key=api_key)
+    is_car = _check_is_car_search(body.prompt, body.description or "", llm_gateway)
+    return JSONResponse({"is_car_search": is_car})
+
 
 @app.post("/api/execute")
 def execute(body: ExecuteRequest, stream: bool = False):

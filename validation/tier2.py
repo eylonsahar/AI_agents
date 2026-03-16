@@ -1,12 +1,13 @@
 """
 Tier 2 — Intent classifier tests (adversarial prompts).
-Expects status=error with classifier rejection (e.g. "doesn't seem to be about finding a car").
-Treats "no vehicles found" as a bypass — pipeline ran instead of rejecting.
+
+Full mode  (run_tier2):             POST /api/execute — full pipeline, budget-guarded.
+Short mode (run_tier2_classifier_only): POST /api/classify — classifier only, no pipeline cost.
 """
 
 import time
 import traceback
-from typing import List
+from typing import Dict, List
 
 import requests
 
@@ -18,25 +19,135 @@ def get_step_count(bad_prompts: List[str]) -> int:
     return len(bad_prompts)
 
 
-def run_tier2(suite, bad_prompts: List[str]) -> None:
-    """Tier 2: adversarial prompts — expect status=error, not car search."""
-    base = suite.base_url.rstrip("/")
-    classifier_bypass_seen = False
+def run_tier2_classifier_only(suite, labeled_prompts: List[Dict[str, str]]) -> None:
+    """
+    Classifier-only short run: POST /api/classify for each labeled prompt.
+    No pipeline budget is consumed.
 
-    for prompt in bad_prompts:
-        if classifier_bypass_seen:
+    Each entry must be {"prompt": str, "label": "car" | "not_car"}.
+
+      label=car     → expect is_car_search=true
+                        PASS = True Positive (TP)
+                        FAIL = False Negative (FN) — classifier wrongly rejected a car prompt
+
+      label=not_car → expect is_car_search=false
+                        PASS = True Negative (TN)
+                        FAIL = False Positive (FP) — classifier let a non-car prompt through
+    """
+    base = suite.base_url.rstrip("/")
+
+    for entry in labeled_prompts:
+        prompt = entry["prompt"]
+        label = entry["label"]          # "car" or "not_car"
+        expect_car = label == "car"
+
+        t0 = time.perf_counter()
+        try:
+            r = requests.post(
+                f"{base}/api/classify",
+                json={"prompt": prompt},
+                timeout=60,
+            )
+            dur = (time.perf_counter() - t0) * 1000
+
+            is_json = r.headers.get("content-type", "").startswith("application/json")
+            if not is_json:
+                suite._add_result(
+                    TestResult(
+                        name="tier2c_invalid_response",
+                        tier=2,
+                        passed=False,
+                        detail=f"expected JSON response, got: {r.headers.get('content-type', '') or 'none'}",
+                        duration_ms=dur,
+                        prompt_used=prompt,
+                        response_snapshot=(r.text or "")[:2000] or None,
+                    )
+                )
+                suite._advance_progress()
+                continue
+
+            try:
+                j = r.json()
+            except Exception as parse_err:
+                suite._add_result(
+                    TestResult(
+                        name="tier2c_invalid_json",
+                        tier=2,
+                        passed=False,
+                        detail=f"response is not valid JSON: {parse_err}",
+                        duration_ms=dur,
+                        prompt_used=prompt,
+                        response_snapshot=(r.text or "")[:2000] or None,
+                    )
+                )
+                suite._advance_progress()
+                continue
+
+            is_car = j.get("is_car_search")
+            if not isinstance(is_car, bool):
+                suite._add_result(
+                    TestResult(
+                        name="tier2c_unexpected_response",
+                        tier=2,
+                        passed=False,
+                        detail=f"unexpected /api/classify response: {j}",
+                        duration_ms=dur,
+                        prompt_used=prompt,
+                    )
+                )
+                suite._advance_progress()
+                continue
+
+            correct = is_car == expect_car
+            if expect_car:
+                outcome = "TP" if correct else "FN"
+                name = "tier2c_accepted" if correct else "tier2c_false_negative"
+                detail = (
+                    "correctly accepted by classifier (TP)"
+                    if correct
+                    else "false negative: classifier rejected a valid car prompt (FN)"
+                )
+            else:
+                outcome = "TN" if correct else "FP"
+                name = "tier2c_rejected" if correct else "tier2c_false_positive"
+                detail = (
+                    "correctly rejected by classifier (TN)"
+                    if correct
+                    else "false positive: classifier accepted a non-car prompt (FP)"
+                )
+
             suite._add_result(
                 TestResult(
-                    name="tier2_skip_after_bypass",
+                    name=name,
                     tier=2,
-                    passed=True,
-                    detail="SKIPPED (budget): classifier bypass already confirmed",
+                    passed=correct,
+                    detail=f"[label={label}] [{outcome}] {detail}",
+                    duration_ms=dur,
                     prompt_used=prompt,
                 )
             )
             suite._advance_progress()
-            continue
+        except Exception as e:
+            suite._add_result(
+                TestResult(
+                    name="tier2c_error",
+                    tier=2,
+                    passed=False,
+                    detail=str(e),
+                    duration_ms=(time.perf_counter() - t0) * 1000,
+                    prompt_used=prompt,
+                    exception_traceback=traceback.format_exc(),
+                    request_snapshot={"prompt": prompt},
+                )
+            )
+            suite._advance_progress()
 
+
+def run_tier2(suite, bad_prompts: List[str]) -> None:
+    """Tier 2: adversarial prompts — expect status=error, not car search."""
+    base = suite.base_url.rstrip("/")
+
+    for prompt in bad_prompts:
         if not suite._can_run_pipeline():
             suite._add_result(
                 TestResult(
@@ -96,7 +207,6 @@ def run_tier2(suite, bad_prompts: List[str]) -> None:
             status = j.get("status")
             resp_snap = (j.get("response") or j.get("error") or "")[:2000]
             if status == "ok":
-                classifier_bypass_seen = True
                 suite._add_result(
                     TestResult(
                         name="tier2_classifier_bypass",
@@ -112,7 +222,6 @@ def run_tier2(suite, bad_prompts: List[str]) -> None:
                 err = j.get("error", "") or ""
                 # "No vehicles found" means the pipeline ran — classifier failed to reject
                 if "no vehicles found" in err.lower() or "couldn't find any vehicles" in err.lower():
-                    classifier_bypass_seen = True
                     suite._add_result(
                         TestResult(
                             name="tier2_classifier_bypass",

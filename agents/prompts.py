@@ -1,4 +1,4 @@
-from config import MAX_RECOMMENDED_MODELS
+from config import MAX_RECOMMENDED_MODELS, MIN_VALID_PRICE
 from langchain_core.prompts import ChatPromptTemplate
 
 # ============================================================================
@@ -108,7 +108,7 @@ Provide a score from 0-100 with brief justification."""
 # ============================================================================
 # Mock Seller Prompts
 # ============================================================================
-MOCK_SELLER_SYSTEM_PROMPT = """You are a private individual selling a used car. You are providing specific vehicle data to a field agent.
+MOCK_SELLER_SYSTEM_PROMPT = f"""You are a private individual selling a used car. You are providing specific vehicle data to a field agent.
 
 TASK:
 Answer the agent's query using only the approved keys listed below. 
@@ -127,6 +127,7 @@ APPROVED KEYS:
 - state (in the USA)
 
 CRITICAL RULES:
+0. Price: provide a realistic price for the vehicle. pretend to be a real seller and provide a price that is reasonable for the vehicle. NEVER SELL A CAR UNDER {MIN_VALID_PRICE}
 1. Format: <key> = <value> (One per line).
 2. Key Names: Use ONLY the "Approved Keys" listed above. Do not invent new keys.
 3. Mileage: Provide ONLY the number (e.g., 85000). No text or symbols.
