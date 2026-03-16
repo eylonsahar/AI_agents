@@ -70,7 +70,17 @@ CRITICAL_FIELDS = [
 ]
 MAX_DECISION_ITERATIONS = 25 # Max decision iteration to prevent infinite loop (reduced from 50)
 MIN_VALID_PRICE = 500  # Listings with price below this are treated as missing/invalid data
-SUSPICIOUS_PRICE_THRESHOLD = 100  # Listings that reach DecisionAgent with price below this are penalized
+SUSPICIOUS_PRICE_THRESHOLD = 100  # Listings that reach DecisionAgent with a price below this are penalized
+
+# Condition-based lower-bound multipliers vs. list_price (how cheap relative to list is acceptable)
+CONDITION_PRICE_LOWER_BOUNDS: dict = {
+    "like new": 0.7,
+    "excellent": 0.6,
+    "good": 0.4,
+    "fair": 0.25,
+}
+DEFAULT_PRICE_LOWER_BOUND = 0.25  # used when the condition is unknown/missing
+LIST_PRICE_UPPER_BOUND = 2.50     # price > 250% of list_price → unrealistic
 
 
 # Supervisor configurations
