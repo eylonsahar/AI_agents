@@ -15,8 +15,7 @@ from .models import EFFICIENCY_STEP_THRESHOLD, TestResult
 FIXED_CASES = [
     ("spec_compliant_prompt_only", {"prompt": "Reliable family SUV under $22,000, 2018 or newer"}, None),
     ("explicit_fields", {"prompt": "family SUV", "max_price": "22000", "year_min": "2018"}, None),
-    # "inexact" = status must be "ok" AND response must contain "No exact match found for"
-    ("inexact_model", {"prompt": "Toyota Okozaky under $50000, 2020 or newer"}, "inexact"),
+    ("no_results", {"prompt": "Toyota Okozaky under $50000, 2020 or newer"}, None),
 ]
 
 
@@ -43,10 +42,8 @@ def validate_response_schema(j: dict) -> Tuple[bool, str]:
     return True, "ok"
 
 
-def run_tier3(suite, good_prompts: List[str], inexact_prompts: List[str] = None) -> None:
+def run_tier3(suite, good_prompts: List[str]) -> None:
     """Tier 3: full pipeline tests with fixed edge cases + optional random prompts."""
-    if inexact_prompts is None:
-        inexact_prompts = []
     base = suite.base_url.rstrip("/")
 
     for name, body, expect_error in FIXED_CASES:
@@ -88,29 +85,7 @@ def run_tier3(suite, good_prompts: List[str], inexact_prompts: List[str] = None)
                 continue
 
             status = j.get("status", "")
-            if expect_error == "inexact":
-                # Pass only when the agent returned cars AND acknowledged the missing model
-                response_text = (j.get("response") or "").lower()
-                passed = (
-                    status == "ok"
-                    and "no exact match found for" in response_text
-                )
-                suite._add_result(
-                    TestResult(
-                        name=f"tier3_{name}",
-                        tier=3,
-                        passed=passed,
-                        detail=(
-                            f"status={status}, "
-                            f"inexact_banner={'present' if 'no exact match found for' in response_text else 'MISSING'}"
-                        ),
-                        duration_ms=dur,
-                        prompt_used=body.get("prompt", ""),
-                        response_snapshot=resp_snap or None,
-                    )
-                )
-                suite._advance_progress()
-            elif expect_error:
+            if expect_error:
                 err = (j.get("error") or "").lower()
                 passed = status == "error" and ("no vehicles" in err or "not find" in err or "couldn't find" in err or ". stopping." in err)
                 suite._add_result(
@@ -288,71 +263,6 @@ def run_tier3(suite, good_prompts: List[str], inexact_prompts: List[str] = None)
             suite._add_result(
                 TestResult(
                     name="tier3_random",
-                    tier=3,
-                    passed=False,
-                    detail=str(e),
-                    duration_ms=(time.perf_counter() - t0) * 1000,
-                    prompt_used=prompt,
-                    exception_traceback=traceback.format_exc(),
-                    request_snapshot={"prompt": prompt},
-                )
-            )
-            suite._advance_progress()
-
-    # Inexact-model prompts — must return ok + "No exact match found for" banner
-    for prompt in inexact_prompts:
-        if not suite._can_run_pipeline():
-            suite._add_result(
-                TestResult(
-                    name="tier3_inexact_model",
-                    tier=3,
-                    passed=True,
-                    detail="SKIPPED (budget exhausted)",
-                    prompt_used=prompt,
-                )
-            )
-            suite._advance_progress()
-            continue
-
-        t0 = time.perf_counter()
-        try:
-            r = requests.post(f"{base}/api/execute", json={"prompt": prompt}, timeout=600)
-            dur = (time.perf_counter() - t0) * 1000
-            suite.pipeline_runs_used += 1
-
-            j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-            ok_schema, schema_msg = validate_response_schema(j)
-            status = j.get("status", "")
-            response_text = (j.get("response") or "").lower()
-            resp_snap = (j.get("response") or j.get("error") or "")[:2000]
-
-            if not ok_schema:
-                passed = False
-                detail = f"schema invalid: {schema_msg}"
-            else:
-                inexact_banner_present = "no exact match found for" in response_text
-                passed = status == "ok" and inexact_banner_present
-                detail = (
-                    f"status={status}, "
-                    f"inexact_banner={'present' if inexact_banner_present else 'MISSING'}"
-                )
-
-            suite._add_result(
-                TestResult(
-                    name="tier3_inexact_model",
-                    tier=3,
-                    passed=passed,
-                    detail=detail,
-                    duration_ms=dur,
-                    prompt_used=prompt,
-                    response_snapshot=resp_snap or None,
-                )
-            )
-            suite._advance_progress()
-        except Exception as e:
-            suite._add_result(
-                TestResult(
-                    name="tier3_inexact_model",
                     tier=3,
                     passed=False,
                     detail=str(e),

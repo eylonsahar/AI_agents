@@ -522,18 +522,10 @@ def execute(body: ExecuteRequest, stream: bool = False):
             }) + "\n"
             return
 
-        response_text = _format_results_as_text(result.get("results", []))
-        if result.get("inexact_model_note"):
-            note = result["inexact_model_note"]
-            response_text = (
-                f"⚠️  No exact match found for '{note}' in our database. "
-                f"Here are the closest vehicles we could find:\n\n"
-            ) + response_text
-
         yield _json.dumps({
             "status":   "ok",
             "error":    None,
-            "response": response_text,
+            "response": _format_results_as_text(result.get("results", [])),
             "steps":    _normalize_steps(result.get("steps", [])),
         }) + "\n"
 
@@ -610,18 +602,10 @@ def _run_blocking(body, _extract_price, _extract_year,
                     "response": None,
                     "steps": _normalize_steps(result.get("steps", []))}
 
-        response_text = _format_results_as_text(result.get("results", []))
-        if result.get("inexact_model_note"):
-            note = result["inexact_model_note"]
-            response_text = (
-                f"⚠️  No exact match found for '{note}' in our database. "
-                f"Here are the closest vehicles we could find:\n\n"
-            ) + response_text
-
         return {
             "status":   "ok",
             "error":    None,
-            "response": response_text,
+            "response": _format_results_as_text(result.get("results", [])),
             "steps":    _normalize_steps(result.get("steps", []))
         }
     except Exception as exc:

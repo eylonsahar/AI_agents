@@ -77,7 +77,6 @@ class AItzikTestSuite:
         num_examples: int = 6,
     ) -> None:
         good_prompts: List[str] = []
-        inexact_prompts: List[str] = []
         bad_prompts: List[str] = []
 
         if replay_file and os.path.isfile(replay_file):
@@ -85,7 +84,6 @@ class AItzikTestSuite:
                 data = json.load(f)
                 good_prompts = data.get("good_prompts", [])
                 bad_prompts = data.get("bad_prompts", [])
-                inexact_prompts = data.get("inexact_prompts", [])
         elif random_mode and (2 in tiers or 3 in tiers):
             if 2 in tiers:
                 from .bad_user_agent import BadUserAgent
@@ -96,15 +94,11 @@ class AItzikTestSuite:
                 from .good_user_agent import GoodUserAgent
 
                 good_agent = GoodUserAgent()
-                n_inexact = num_examples // 4
-                n_normal = num_examples - n_inexact
-                good_prompts = good_agent.generate(n_normal)
-                inexact_prompts = good_agent.generate_inexact(n_inexact)
+                good_prompts = good_agent.generate(num_examples)
             self.saved_prompts = {
                 "generated_at": datetime.now().isoformat(),
                 "good_prompts": good_prompts,
                 "bad_prompts": bad_prompts,
-                "inexact_prompts": inexact_prompts,
             }
         else:
             if 2 in tiers:
@@ -132,7 +126,7 @@ class AItzikTestSuite:
             total_steps += get_tier2_step_count(bad_prompts)
         if 3 in tiers:
             from .tier3 import get_fixed_step_count
-            total_steps += get_fixed_step_count() + len(good_prompts) + len(inexact_prompts)
+            total_steps += get_fixed_step_count() + len(good_prompts)
 
         from tqdm import tqdm
 
@@ -194,7 +188,7 @@ class AItzikTestSuite:
                 try:
                     from .tier3 import run_tier3
 
-                    run_tier3(self, good_prompts, inexact_prompts)
+                    run_tier3(self, good_prompts)
                 except Exception as e:
                     import traceback
 
