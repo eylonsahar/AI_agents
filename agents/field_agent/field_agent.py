@@ -12,13 +12,11 @@ ActionLog contract:
 """
 
 import os
-import json
 import urllib.parse
 from typing import Dict, List, Any, Tuple, Optional
 
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.outputs import LLMResult
 
 from agents.field_agent.mock_seller import MockSeller
 from agents.field_agent.tools import make_field_agent_tools
@@ -30,7 +28,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from config import (NUM_AVAILABLE_DATES, MEETING_DURATION, MEETING_TIMEFRAME,
                     GUARANTEED_MISSING_FIELDS, CRITICAL_FIELDS, MAX_DECISION_ITERATIONS,
-                    MIN_VALID_PRICE)
+                    MIN_VALID_PRICE, CONDITION_PRICE_LOWER_BOUNDS, DEFAULT_PRICE_LOWER_BOUND,
+                    LIST_PRICE_UPPER_BOUND)
 
 load_dotenv()
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
@@ -233,9 +232,11 @@ class FieldAgent:
 
         Price validity is checked in two stages:
         1. Hard limit: price < MIN_VALID_PRICE → always treated as missing.
-        2. Semantic check: price >= MIN_VALID_PRICE but still implausible for
-           this specific make/model/year (e.g. $650 for a 2019 Tesla Model 3)
-           → LLM-assessed, result cached per listing_id.
+        2. Plausibility check: for price >= MIN_VALID_PRICE, we first use a
+           deterministic comparison against list_price (if available) to flag
+           clearly implausible prices; if list_price is unavailable, we fall
+           back to an LLM-based semantic assessment, with the result cached
+           per listing_id.
         """
         missing = []
         all_critical = list(GUARANTEED_MISSING_FIELDS) + [
@@ -257,10 +258,20 @@ class FieldAgent:
         return list(set(missing))
 
     def _is_price_unrealistic(self, listing: dict) -> bool:
-        """Ask the LLM whether the listed price is plausible for this vehicle.
+        """Determine whether the listed price is plausible for this vehicle.
 
-        Uses a simple YES/NO prompt. Result is cached by listing_id so each
-        listing is assessed at most once per FieldAgent run.
+        Primary path (when list_price is available):
+            Computes price / list_price and checks it against condition-based
+            thresholds from config. No LLM call is needed.
+
+        Fallback path (when list_price is missing or zero):
+            Asks the LLM with a YES/NO prompt (original behavior).
+
+        If the listed price itself is missing, empty, or zero, it is immediately
+        flagged as unrealistic, so the caller will request a corrected price.
+
+        The result is cached by listing_id so each listing is assessed at most once
+        per FieldAgent run.
         """
         listing_id = str(listing.get("id", ""))
         if listing_id in self._price_unrealistic_cache:
@@ -271,10 +282,50 @@ class FieldAgent:
         year = listing.get("year", "")
         price = listing.get("price", "")
 
-        if not all([make, model, year, price]):
-            self._price_unrealistic_cache[listing_id] = False
+        # A missing or zero price is always unrealistic.
+        try:
+            price_val = float(price) if price not in (None, "") else 0.0
+        except (ValueError, TypeError):
+            price_val = 0.0
+        if price_val <= 0:
+            self._price_unrealistic_cache[listing_id] = True
+            return True
+
+        # --- Primary path: list_price-based deterministic check ---
+        list_price_raw = listing.get("list_price", "")
+        try:
+            list_price_val = float(list_price_raw) if list_price_raw not in (None, "") else 0.0
+        except (ValueError, TypeError):
+            list_price_val = 0.0
+
+        if list_price_val > 0:
+            condition = (listing.get("condition") or "").strip().lower()
+            lower_bound = CONDITION_PRICE_LOWER_BOUNDS.get(condition, DEFAULT_PRICE_LOWER_BOUND)
+            ratio = price_val / list_price_val
+            is_unrealistic = ratio < lower_bound or ratio > LIST_PRICE_UPPER_BOUND
+
+            self.action_log.add_step(
+                module="FieldAgent",
+                submodule="PriceValidation",
+                prompt=(
+                    f"List-price check: {year} {make} {model} | "
+                    f"price=${price_val:.0f}, list_price=${list_price_val:.0f}, "
+                    f"condition='{condition or 'unknown'}' | "
+                    f"ratio={ratio:.2f}, bounds=[{lower_bound:.2f}, {LIST_PRICE_UPPER_BOUND:.2f}]"
+                ),
+                response=f"{'UNREALISTIC' if is_unrealistic else 'PLAUSIBLE'} — ratio {ratio:.2f}",
+            )
+
+            self._price_unrealistic_cache[listing_id] = is_unrealistic
+            return is_unrealistic
+
+        # If we don't have enough identifying information, skip semantic checks for now
+        # without caching a "not assessed" result. This allows re-evaluation once fields
+        # like make/model/year are populated.
+        if not all([make, model, year]):
             return False
 
+        # --- Fallback path: LLM-based semantic check ---
         prompt = (
             f"A used {year} {make} {model} is listed for sale at ${price}.\n"
             f"Is this price clearly unrealistic for the US used-car market?\n"
