@@ -232,9 +232,11 @@ class FieldAgent:
 
         Price validity is checked in two stages:
         1. Hard limit: price < MIN_VALID_PRICE → always treated as missing.
-        2. Semantic check: price >= MIN_VALID_PRICE but still implausible for
-           this specific make/model/year (e.g., $650 for a 2019 Tesla Model 3)
-           → LLM-assessed, result cached per listing_id.
+        2. Plausibility check: for price >= MIN_VALID_PRICE, we first use a
+           deterministic comparison against list_price (if available) to flag
+           clearly implausible prices; if list_price is unavailable, we fall
+           back to an LLM-based semantic assessment, with the result cached
+           per listing_id.
         """
         missing = []
         all_critical = list(GUARANTEED_MISSING_FIELDS) + [
