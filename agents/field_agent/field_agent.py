@@ -291,10 +291,6 @@ class FieldAgent:
             self._price_unrealistic_cache[listing_id] = True
             return True
 
-        if not all([make, model, year]):
-            self._price_unrealistic_cache[listing_id] = False
-            return False
-
         # --- Primary path: list_price-based deterministic check ---
         list_price_raw = listing.get("list_price", "")
         try:
@@ -322,6 +318,12 @@ class FieldAgent:
 
             self._price_unrealistic_cache[listing_id] = is_unrealistic
             return is_unrealistic
+
+        # If we don't have enough identifying information, skip semantic checks for now
+        # without caching a "not assessed" result. This allows re-evaluation once fields
+        # like make/model/year are populated.
+        if not all([make, model, year]):
+            return False
 
         # --- Fallback path: LLM-based semantic check ---
         prompt = (
