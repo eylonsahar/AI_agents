@@ -230,13 +230,9 @@ class FieldAgent:
     def _identify_missing_fields(self, listing: dict) -> List[str]:
         """Return the list of critical fields that are missing or empty.
 
-        Price validity is checked in two stages:
-        1. Hard limit: price < MIN_VALID_PRICE → always treated as missing.
-        2. Plausibility check: for price >= MIN_VALID_PRICE, we first use a
-           deterministic comparison against list_price (if available) to flag
-           clearly implausible prices; if list_price is unavailable, we fall
-           back to an LLM-based semantic assessment, with the result cached
-           per listing_id.
+        Price validity delegates entirely to _is_price_unrealistic, which
+        handles the MIN_VALID_PRICE hard limit, the deterministic list_price
+        ratio check, and the LLM fallback in one place.
         """
         missing = []
         all_critical = list(GUARANTEED_MISSING_FIELDS) + [
@@ -247,13 +243,7 @@ class FieldAgent:
             if val is None or val == "" or val == "Not Provided":
                 missing.append(field)
             elif field == "price":
-                try:
-                    price_val = float(val)
-                    if price_val < MIN_VALID_PRICE:
-                        missing.append(field)
-                    elif self._is_price_unrealistic(listing):
-                        missing.append(field)
-                except (ValueError, TypeError):
+                if self._is_price_unrealistic(listing):
                     missing.append(field)
         return list(set(missing))
 
@@ -267,8 +257,8 @@ class FieldAgent:
         Fallback path (when list_price is missing or zero):
             Asks the LLM with a YES/NO prompt (original behavior).
 
-        If the listed price itself is missing, empty, or zero, it is immediately
-        flagged as unrealistic, so the caller will request a corrected price.
+        If the listed price is missing, unparseable, or below MIN_VALID_PRICE, it
+        is immediately flagged as unrealistic without further checks.
 
         The result is cached by listing_id so each listing is assessed at most once
         per FieldAgent run.
@@ -282,12 +272,11 @@ class FieldAgent:
         year = listing.get("year", "")
         price = listing.get("price", "")
 
-        # A missing or zero price is always unrealistic.
         try:
             price_val = float(price) if price not in (None, "") else 0.0
         except (ValueError, TypeError):
             price_val = 0.0
-        if price_val <= 0:
+        if price_val < MIN_VALID_PRICE:
             self._price_unrealistic_cache[listing_id] = True
             return True
 
@@ -306,7 +295,7 @@ class FieldAgent:
 
             self.action_log.add_step(
                 module="FieldAgent",
-                submodule="PriceValidation",
+                submodule="PriceValidation - Deterministic Path",
                 prompt=(
                     f"List-price check: {year} {make} {model} | "
                     f"price=${price_val:.0f}, list_price=${list_price_val:.0f}, "
@@ -345,7 +334,7 @@ class FieldAgent:
 
         self.action_log.add_step(
             module="FieldAgent",
-            submodule="PriceValidation",
+            submodule="PriceValidation - LLM Call",
             prompt=prompt,
             response=f"{'UNREALISTIC' if is_unrealistic else 'PLAUSIBLE'} — raw answer: {raw_answer}",
         )
