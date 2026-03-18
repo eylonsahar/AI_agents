@@ -286,6 +286,22 @@ Begin!"""),
 
 
 
+# ============================================================================
+# CSV Model Resolution Prompt
+# ============================================================================
+
+CSV_MODEL_RESOLUTION_PROMPT = (
+    'A user is searching for a vehicle: "{user_query}"\n'
+    "The knowledge base recommended: {rag_make} {rag_model}\n"
+    "Original recommendation reason: {rag_reason}\n\n"
+    "The {rag_make} {rag_model} is not sold in the US, so the closest available "
+    "US listing we found is: {csv_make} {csv_model}\n\n"
+    "Write a single sentence (max 25 words) explaining why the {csv_make} {csv_model} "
+    "is a good match for this user's needs.\n"
+    "Reply with ONLY the sentence — no preamble, no quotes, no punctuation at the end."
+)
+
+
 # Legacy string prompt kept for reference
 SUPERVISOR_DECISION_PROMPT = """You are an autonomous supervisor coordinating a car-finding system.
 

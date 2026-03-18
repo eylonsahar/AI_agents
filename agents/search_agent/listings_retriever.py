@@ -203,17 +203,22 @@ class ListingsRetriever:
             # -----------------------------------------------------------
             # Tier 3: manufacturer only + user year_min
             # -----------------------------------------------------------
+            tier3_fired = False
             if not listings_raw and make and year_min is not None:
                 print(f"[ListingsRetriever] Tier-2 returned 0 for '{make} {model}'. "
                       f"Falling back to manufacturer '{make}' only.")
                 listings_raw = self._query(make=make, model=None,
                                            year_range=None,
                                            year_min=year_min, price_max=price_max)
+                if listings_raw:
+                    tier3_fired = True
 
             top_listings = self._select_top_cars(listings_raw, n=top_n)
 
             for listing_dict in top_listings:
                 listing = VehicleListing.from_dict(listing_dict)
+                listing._source_vehicle_model = vehicle_model
+                listing._tier3_fired = tier3_fired
                 all_listings.append(listing)
 
         return all_listings

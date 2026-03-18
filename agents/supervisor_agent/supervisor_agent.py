@@ -11,7 +11,7 @@ ActionLog contract:
       its own steps to it.  No concatenation needed at the end.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_core.callbacks import BaseCallbackHandler
@@ -241,6 +241,69 @@ class AgentSupervisor:
             f"{v.get('make', '')} {v.get('model', '')}" for v in self.vehicle_models
         )
 
+    def _resolve_to_csv_model(
+        self,
+        original_rag_model,  # VehicleModel dataclass
+        csv_make: str,
+        csv_model: str,
+        user_query: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Called when tier-3 fallback returns listings for a different model than the RAG
+        recommended (e.g. RAG said Toyota Hilux but only Toyota Camry is in the US CSV).
+
+        Makes a single, cheap LLM call to generate an accurate match_reason that describes
+        why the *actual* CSV model (csv_make / csv_model) fits the user's needs, so the
+        final output is honest and not misleading.
+
+        Returns a v_meta dict compatible with the rest of the pipeline, or None on failure.
+        """
+        from agents.prompts import CSV_MODEL_RESOLUTION_PROMPT
+
+        prompt = CSV_MODEL_RESOLUTION_PROMPT.format(
+            user_query=user_query,
+            rag_make=original_rag_model.make,
+            rag_model=original_rag_model.model,
+            rag_reason=original_rag_model.match_reason,
+            csv_make=csv_make.title(),
+            csv_model=csv_model.title(),
+        )
+
+        try:
+            print(
+                f"[CSVModelResolution] Resolving "
+                f"{original_rag_model.make} {original_rag_model.model} "
+                f"→ {csv_make} {csv_model}"
+            )
+            response_text, _ = self.llm_gateway.call_llm(prompt=prompt)
+            reason = response_text.strip().strip('"').strip("'")
+            if not reason:
+                reason = (
+                    f"Best available {csv_make.title()} match for your requirements."
+                )
+
+            self.action_log.add_step(
+                module="SearchPipeline",
+                submodule="CSVModelResolution",
+                prompt=(
+                    f"Resolve {original_rag_model.make} {original_rag_model.model} "
+                    f"→ {csv_make} {csv_model}"
+                ),
+                response=reason,
+            )
+
+            return {
+                "make": csv_make.title(),
+                "model": csv_model.title(),
+                "body_type": original_rag_model.body_type,
+                "years": original_rag_model.years,
+                "match_score": original_rag_model.match_score,
+                "match_reason": reason,
+            }
+        except Exception as exc:
+            print(f"[CSVModelResolution] LLM call failed: {exc}")
+            return None
+
     def _action_retrieve_listings(self) -> str:
         """Retrieve listings from CSV using the found vehicle models."""
         if not self.vehicle_models:
@@ -275,23 +338,50 @@ class AgentSupervisor:
             price_max=price_max,
         )
 
-        # Convert VehicleListing objects back to the dict format the rest of supervisor expects
+        # Convert VehicleListing objects back to the dict format the rest of supervisor expects.
+        # Also build a map so we can recover the original RAG model + tier-3 flag per CSV key.
         results_by_vehicle = {}
+        listing_source_map: Dict[str, tuple] = {}  # csv_key → (source_VehicleModel, tier3_fired)
         for listing in listing_objects:
             d = listing.to_dict() if hasattr(listing, "to_dict") else vars(listing)
             key = f"{d.get('manufacturer', '')} {d.get('model', '')}" .strip()
             if key not in results_by_vehicle:
                 results_by_vehicle[key] = []
             results_by_vehicle[key].append(d)
+            csv_key = key.lower()
+            if csv_key and csv_key not in listing_source_map:
+                listing_source_map[csv_key] = (
+                    getattr(listing, "_source_vehicle_model", None),
+                    getattr(listing, "_tier3_fired", False),
+                )
+
+        user_query = (
+            self.user_requirements.get("full_query", "") if self.user_requirements else ""
+        )
 
         self.listings = {"results": []}
         for vehicle_model, listings_list in results_by_vehicle.items():
-            # Find matching vehicle meta from self.vehicle_models
+            # Exact match against RAG-recommended models
             v_meta = {}
             for v in self.vehicle_models:
                 if vehicle_model.lower() == f"{v.get('make','')} {v.get('model','')}" .lower().strip():
                     v_meta = v
                     break
+
+            # If no exact match, check whether tier-3 fallback fired and resolve via LLM
+            if not v_meta:
+                source_vm, tier3_fired = listing_source_map.get(vehicle_model.lower(), (None, False))
+                if tier3_fired and source_vm is not None:
+                    parts = vehicle_model.split(" ", 1)
+                    csv_make  = parts[0] if parts else ""
+                    csv_model_name = parts[1] if len(parts) > 1 else ""
+                    v_meta = self._resolve_to_csv_model(
+                        original_rag_model=source_vm,
+                        csv_make=csv_make,
+                        csv_model=csv_model_name,
+                        user_query=user_query,
+                    ) or {}
+
             self.listings["results"].append({"vehicle": v_meta, "listings": listings_list})
 
         total = sum(len(r.get("listings", [])) for r in self.listings["results"])
