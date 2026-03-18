@@ -98,6 +98,7 @@ class VehicleListing:
     # Additional fields from CSV that may be present
     manufacturer: Optional[str] = None
     model: Optional[str] = None
+    list_price: Optional[float] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'VehicleListing':
@@ -115,7 +116,8 @@ class VehicleListing:
             accident=data.get('accident'),
             meetings=data.get('meetings', []),
             manufacturer=data.get('manufacturer'),
-            model=data.get('model')
+            model=data.get('model'),
+            list_price=float(v) if (v := data.get('list_price')) is not None and str(v) not in ('', '<NA>') else None,
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -137,6 +139,8 @@ class VehicleListing:
             result['manufacturer'] = self.manufacturer
         if self.model:
             result['model'] = self.model
+        if self.list_price is not None:
+            result['list_price'] = self.list_price
         return {k: v for k, v in result.items() if v is not None}
 
 
