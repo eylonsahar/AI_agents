@@ -290,6 +290,30 @@ Begin!"""),
 # CSV Model Resolution Prompt
 # ============================================================================
 
+# ============================================================================
+# US Market Model Translation Prompt  (pre-query, tier-3 fallback)
+# ============================================================================
+
+US_MODEL_TRANSLATION_PROMPT = (
+    "You are a US automotive market expert.\n\n"
+    "A vehicle search pipeline looked for: {rag_make} {rag_model} (body type: {body_type}).\n"
+    "User query: \"{user_query}\"\n\n"
+    "This vehicle is not commonly sold in the US market. "
+    "List up to 5 US-market vehicles that serve the same purpose and would satisfy this buyer. "
+    "Focus on models commonly found in US used-car databases.\n\n"
+    "Reply with ONLY the list, one vehicle per line, in this exact format:\n"
+    "make|model\n\n"
+    "Example output:\n"
+    "ford|ranger\n"
+    "toyota|tacoma\n"
+    "chevrolet|colorado"
+)
+
+
+# ============================================================================
+# CSV Model Resolution Prompt  (post-query, generates match_reason)
+# ============================================================================
+
 CSV_MODEL_RESOLUTION_PROMPT = (
     'A user is searching for a vehicle: "{user_query}"\n'
     "The knowledge base recommended: {rag_make} {rag_model}\n"

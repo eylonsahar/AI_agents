@@ -319,7 +319,7 @@ class AgentSupervisor:
         )
 
 
-        retriever = ListingsRetriever()
+        retriever = ListingsRetriever(llm_gateway=self.llm_gateway)
 
         # Parse user constraints for the fallback tiers in retrieve_listings
         reqs = self.user_requirements or {}
@@ -332,10 +332,13 @@ class AgentSupervisor:
         except (TypeError, ValueError):
             price_max = None
 
+        user_query = reqs.get("full_query", "")
+
         listing_objects = retriever.retrieve_listings(
             vehicle_models_result=vehicles_result,
             year_min=year_min,
             price_max=price_max,
+            user_query=user_query,
         )
 
         # Convert VehicleListing objects back to the dict format the rest of supervisor expects.
@@ -354,10 +357,6 @@ class AgentSupervisor:
                     getattr(listing, "_source_vehicle_model", None),
                     getattr(listing, "_tier3_fired", False),
                 )
-
-        user_query = (
-            self.user_requirements.get("full_query", "") if self.user_requirements else ""
-        )
 
         self.listings = {"results": []}
         for vehicle_model, listings_list in results_by_vehicle.items():

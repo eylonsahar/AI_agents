@@ -45,7 +45,7 @@ class SearchPipeline:
             embedding_gateway=embedding_gateway,
             llm_gateway=llm_gateway
         )
-        self.listings_retriever = ListingsRetriever(csv_path=listings_csv_path)
+        self.listings_retriever = ListingsRetriever(csv_path=listings_csv_path, llm_gateway=llm_gateway)
         self.decision_agent = DecisionAgent()
         self.llm_gateway = llm_gateway
         self.action_log = action_log or ActionLog()
@@ -84,12 +84,13 @@ class SearchPipeline:
             raw_result=vehicle_models_result
         )
         
-        # Stage 2: Listings Retrieval (no LLM - just CSV filtering)
+        # Stage 2: Listings Retrieval
         self.retrieved_listings = self.listings_retriever.retrieve_listings(
             vehicle_models_result=self.recommended_models,
             top_n=MAX_LISTINGS_PER_VEHICLE,
             year_min=year_min,
             price_max=price_max,
+            user_query=query,
         )
 
         total_listings = len(self.retrieved_listings)
