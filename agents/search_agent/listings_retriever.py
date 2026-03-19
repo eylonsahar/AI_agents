@@ -254,13 +254,24 @@ class ListingsRetriever:
                 listing._tier3_fired = tier3_fired
                 all_listings.append(listing)
 
-        # Deduplicate by listing id, preserving first-seen order.
-        # This guards against tier-3 returning listings that a direct RAG model already retrieved.
-        seen_ids: set = set()
+        # Deduplicate listings while preserving first-seen order.
+        # Prefer a stable listing.id when present; otherwise, fall back to a composite key.
+        seen_keys: set = set()
         unique_listings: List[VehicleListing] = []
         for listing in all_listings:
-            if listing.id not in seen_ids:
-                seen_ids.add(listing.id)
+            if getattr(listing, "id", None):
+                key = ("id", listing.id)
+            else:
+                key = (
+                    "composite",
+                    getattr(listing, "manufacturer", None),
+                    getattr(listing, "model", None),
+                    getattr(listing, "year", None),
+                    getattr(listing, "price", None),
+                    getattr(listing, "posting_date", None),
+                )
+            if key not in seen_keys:
+                seen_keys.add(key)
                 unique_listings.append(listing)
         return unique_listings
 
