@@ -203,10 +203,6 @@ python test_supervisor.py
 
 # Field agent autonomous test
 python test_field_agent_autonomous.py
-
-# Validation suite (pre-deployment)
-python -m validation.test_auto_suite --tiers 0 1              # Free tests only
-python -m validation.test_auto_suite --tiers 0 1 2 3 --random --budget 3.0  # Full suite
 ```
 
 ---
@@ -216,8 +212,9 @@ python -m validation.test_auto_suite --tiers 0 1 2 3 --random --budget 3.0  # Fu
 | Component | Technology |
 |-----------|-----------|
 | Agent framework | LangChain `create_react_agent` + `AgentExecutor` |
-| LLM | OpenAI GPT-4o (via `LLMGateway`) |
-| Embeddings | OpenAI `text-embedding-ada-002` |
+| LLM | LLMod.ai (OpenAI-compatible API) |
+| Embeddings | LLMod.ai (via `EmbeddingGateway`) |
 | Vector DB | Pinecone |
+| Listings data | CSV (structured vehicle listings) |
 | API server | FastAPI + Uvicorn |
 | Frontend | Vanilla HTML / CSS / JavaScript |
