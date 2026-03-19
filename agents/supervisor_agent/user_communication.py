@@ -203,7 +203,8 @@ class UserCommunication:
                 print(f"        ⏱️  Time: {step['timestamp']}")
 
         print("\n" + "=" * 80)
-        print(f"✅ Total LLM Calls: {len(action_log)}")
+        llm_calls = sum(1 for s in action_log if s.get("is_llm_call", True))
+        print(f"✅ Total steps logged: {len(action_log)}  |  Real LLM calls: {llm_calls}")
         print("=" * 80 + "\n")
 
     ###########################

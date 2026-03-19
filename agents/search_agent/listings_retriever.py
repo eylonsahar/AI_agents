@@ -24,14 +24,18 @@ class ListingsRetriever:
     The CSV path is hardcoded in the configuration (LISTINGS_CSV_PATH).
     """
     
-    def __init__(self, csv_path: Optional[str] = None):
+    def __init__(self, csv_path: Optional[str] = None, llm_gateway=None):
         """
         Initialize the ListingsRetriever.
         
         Args:
             csv_path: Optional path to CSV file. If not provided, uses LISTINGS_CSV_PATH from config.
+            llm_gateway: Optional LLMGateway instance. When provided, tier-3 fallback uses LLM
+                         translation to find semantically equivalent US-market models instead of
+                         a raw manufacturer-only search.
         """
         self.csv_path = csv_path or LISTINGS_CSV_PATH
+        self.llm_gateway = llm_gateway
         self.df: Optional[pd.DataFrame] = None
         self._load_data()
     
@@ -155,6 +159,7 @@ class ListingsRetriever:
         top_n: int = MAX_LISTINGS_PER_VEHICLE,
         year_min: Optional[int] = None,
         price_max: Optional[float] = None,
+        user_query: str = "",
     ) -> List[VehicleListing]:
         """
         Retrieve listings for the given vehicle models.
@@ -201,26 +206,118 @@ class ListingsRetriever:
                                            year_min=year_min, price_max=price_max)
 
             # -----------------------------------------------------------
-            # Tier 3: manufacturer only + user year_min
+            # Tier 3: LLM-suggested US-market equivalents (cross-manufacturer),
+            #         with a manufacturer-only hard fallback if LLM is unavailable.
             # -----------------------------------------------------------
-            if not listings_raw and make and year_min is not None:
-                print(f"[ListingsRetriever] Tier-2 returned 0 for '{make} {model}'. "
-                      f"Falling back to manufacturer '{make}' only.")
-                listings_raw = self._query(make=make, model=None,
-                                           year_range=None,
-                                           year_min=year_min, price_max=price_max)
+            tier3_fired = False
+            if not listings_raw:
+                tier3_candidates: List[Dict[str, Any]] = []
+
+                if self.llm_gateway is not None:
+                    us_equivalents = self._translate_to_us_models(vehicle_model, user_query)
+                    # Walk suggestions in LLM priority order; stop at the first model
+                    # that has listings so we don't dilute the pool with less-relevant models.
+                    for eq_make, eq_model in us_equivalents:
+                        eq_results = self._query(
+                            make=eq_make, model=eq_model,
+                            year_range=None,
+                            year_min=year_min, price_max=price_max,
+                        )
+                        if eq_results:
+                            tier3_candidates = eq_results
+                            print(
+                                f"[ListingsRetriever] LLM translation: using "
+                                f"'{eq_make} {eq_model}' ({len(eq_results)} listings) "
+                                f"as US equivalent for '{make} {model}'."
+                            )
+                            break
+
+                # Hard fallback: manufacturer-only (when LLM is absent or returned nothing)
+                if not tier3_candidates and make and year_min is not None:
+                    print(f"[ListingsRetriever] Tier-2 returned 0 for '{make} {model}'. "
+                          f"Falling back to manufacturer '{make}' only.")
+                    tier3_candidates = self._query(
+                        make=make, model=None,
+                        year_range=None,
+                        year_min=year_min, price_max=price_max,
+                    )
+
+                if tier3_candidates:
+                    listings_raw = tier3_candidates
+                    tier3_fired = True
 
             top_listings = self._select_top_cars(listings_raw, n=top_n)
 
             for listing_dict in top_listings:
                 listing = VehicleListing.from_dict(listing_dict)
+                listing._source_vehicle_model = vehicle_model
+                listing._tier3_fired = tier3_fired
                 all_listings.append(listing)
 
-        return all_listings
+        # Deduplicate listings while preserving first-seen order.
+        # Prefer a stable listing.id when present; otherwise, fall back to a composite key.
+        seen_keys: set = set()
+        unique_listings: List[VehicleListing] = []
+        for listing in all_listings:
+            if getattr(listing, "id", None):
+                key = ("id", listing.id)
+            else:
+                key = (
+                    "composite",
+                    getattr(listing, "manufacturer", None),
+                    getattr(listing, "model", None),
+                    getattr(listing, "year", None),
+                    getattr(listing, "price", None),
+                    getattr(listing, "posting_date", None),
+                )
+            if key not in seen_keys:
+                seen_keys.add(key)
+                unique_listings.append(listing)
+        return unique_listings
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _translate_to_us_models(
+        self,
+        vehicle_model: VehicleModel,
+        user_query: str,
+    ) -> List[tuple]:
+        """
+        Ask the LLM for US-market equivalents of a UK-only / internationally-only model.
+
+        Returns a list of (make, model) tuples, all lowercase, ready to pass to _query().
+        Returns an empty list on any error so the caller can gracefully fall back.
+        """
+        from agents.prompts import US_MODEL_TRANSLATION_PROMPT
+
+        prompt = US_MODEL_TRANSLATION_PROMPT.format(
+            rag_make=vehicle_model.make,
+            rag_model=vehicle_model.model,
+            body_type=vehicle_model.body_type or "unknown",
+            user_query=user_query or "not specified",
+        )
+        try:
+            response_text, _ = self.llm_gateway.call_llm(prompt=prompt)
+            results = []
+            for line in response_text.strip().splitlines():
+                line = line.strip()
+                if "|" in line:
+                    parts = line.split("|", 1)
+                    eq_make  = parts[0].strip().lower()
+                    eq_model = parts[1].strip().lower()
+                    if eq_make and eq_model:
+                        results.append((eq_make, eq_model))
+            print(
+                f"[ListingsRetriever] LLM suggested US equivalents for "
+                f"'{vehicle_model.make} {vehicle_model.model}': "
+                + ", ".join(f"{m} {mdl}" for m, mdl in results)
+            )
+            return results
+        except Exception as exc:
+            print(f"[ListingsRetriever] US model translation failed: {exc}")
+            return []
 
     def _query(
         self,

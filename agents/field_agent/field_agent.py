@@ -296,6 +296,7 @@ class FieldAgent:
             self.action_log.add_step(
                 module="FieldAgent",
                 submodule="PriceValidation - Deterministic Path",
+                is_llm_call=False,
                 prompt=(
                     f"List-price check: {year} {make} {model} | "
                     f"price=${price_val:.0f}, list_price=${list_price_val:.0f}, "
@@ -368,6 +369,7 @@ class FieldAgent:
         self.action_log.add_step(
             module="FieldAgent",
             submodule="Seller/GetData",
+            is_llm_call=False,
             prompt=f"Requested fields for listing {listing_id}: {', '.join(fields_to_request)}",
             response=raw_response,
         )
@@ -406,6 +408,9 @@ class FieldAgent:
         """
         Run the LangChain ReAct loop to process all listings.
 
+        For each listing: fills any missing fields by contacting the seller,
+        then schedules a meeting.
+
         Returns:
             {
                 "results": <listings with filled data and meetings>,
@@ -417,8 +422,8 @@ class FieldAgent:
 
         self._executor.invoke({
             "input": (
-                f"Process all vehicle listings below. For each listing: fill any missing fields, "
-                f"then schedule a meeting. Call complete_processing when ALL listings are done.\n\n"
+                "For each listing: fill any missing fields, then schedule a meeting. "
+                "Call complete_processing when ALL listings are done.\n\n"
                 f"{state}"
             )
         })
@@ -466,6 +471,7 @@ class FieldAgent:
         self.action_log.add_step(
             module="FieldAgent",
             submodule="Seller/Scheduling",
+            is_llm_call=False,
             prompt=f"Requested {NUM_AVAILABLE_DATES} available slots from {tomorrow.strftime('%Y-%m-%d')} to {two_weeks_later.strftime('%Y-%m-%d')}",
             response="\n".join(available_slots),
         )

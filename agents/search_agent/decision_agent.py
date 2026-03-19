@@ -217,6 +217,17 @@ class DecisionAgent:
                 vehicle_model = vehicle_model_map.get(vm_key)
                 
                 if not vehicle_model:
+                    # Tier-3 fallback: listing may be a US-market equivalent whose model
+                    # name differs from the RAG recommendation (e.g. "bmw 5 series" for
+                    # a RAG-recommended "bmw 7 series").  Use the same manufacturer's
+                    # VehicleModel so it still gets a meaningful model_score.
+                    make_only = first_listing.manufacturer.lower()
+                    vehicle_model = next(
+                        (vm for vm in vehicle_models_result.vehicles
+                         if vm.make.lower() == make_only),
+                        None,
+                    )
+                if not vehicle_model:
                     continue
                 
                 # Get model score
