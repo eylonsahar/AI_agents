@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-03-10T22:05:33.401703",
+  "good_prompts": [
+    "Looking for a reliable compact sedan, max $8,000 USD, model year 2014 or newer.",
+    "Searching for a family SUV under $25,000 USD, minimum model year 2017.",
+    "Need a used pickup truck — no more than $35,000 USD, min year 2019.",
+    "Find me an electric vehicle up to $20,000 USD, 2016 or newer.",
+    "Hunting for a luxury sedan, max price $45,000 USD, minimum model year 2020.",
+    "Looking for a fuel-efficient hybrid hatchback under $15,000 USD, min year 2015.",
+    "Want a used minivan for family trips, max $22,500 USD, model year 2016 or newer.",
+    "Searching for a small crossover SUV, budget no more than $12,000 USD, minimum year 2012.",
+    "Interested in a sporty coupe, max price $30,000 USD, min model year 2018."
+  ],
+  "bad_prompts": [
+    "Looking for a 2016 round-trip flight to Orlando for about $199, nonstop preferred.",
+    "Searching for a 2019 two-bedroom condo downtown listed at $299,000, must be pet-friendly.",
+    "Want to buy a 2017 55-inch OLED TV for $899 with local pickup and warranty.",
+    "Need an annual insurance quote for my 2015 Honda Civic — estimated premium $1,200 for full coverage.",
+    "Reserve a 2020 SUV rental for one week, total cost $450, pickup at the airport.",
+    "I want to sell my 2011 Toyota Camry for $3,500 and also buy 2011 brake pads for $35.",
+    "Looking for a 2014 Harley-Davidson Sportster around $7,900 with under 20k miles.",
+    "Need a 2019 Ford F-350 diesel crew cab for work, budget $28,000, heavy-duty towing required.",
+    "Searching for a 2016 Class C RV 28ft listed at $34,500, ready-to-camp condition."
+  ]
+}

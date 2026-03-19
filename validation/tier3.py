@@ -68,7 +68,7 @@ def run_tier3(suite, good_prompts: List[str]) -> None:
 
             j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
             ok_schema, schema_msg = validate_response_schema(j)
-            resp_snap = (j.get("response") or j.get("error") or "")[:2000]
+            resp_snap = j.get("response") or j.get("error") or ""
             if not ok_schema:
                 suite._add_result(
                     TestResult(
@@ -186,7 +186,7 @@ def run_tier3(suite, good_prompts: List[str]) -> None:
                 passed = passed and validate_response_schema(final_status)[0]
             resp_snap = None
             if final_status:
-                resp_snap = (final_status.get("response") or final_status.get("error") or "")[:2000]
+                resp_snap = final_status.get("response") or final_status.get("error") or ""
             suite._add_result(
                 TestResult(
                     name="tier3_streaming",
@@ -244,7 +244,7 @@ def run_tier3(suite, good_prompts: List[str]) -> None:
             suite.efficiency.append(
                 {"prompt": prompt[:60], "step_count": step_count, "flagged": step_count > EFFICIENCY_STEP_THRESHOLD}
             )
-            resp_snap = (j.get("response") or j.get("error") or "")[:2000]
+            resp_snap = j.get("response") or j.get("error") or ""
 
             passed = ok_schema and status == "ok"
             suite._add_result(

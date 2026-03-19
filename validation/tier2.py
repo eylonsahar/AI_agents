@@ -60,7 +60,7 @@ def run_tier2_classifier_only(suite, labeled_prompts: List[Dict[str, str]]) -> N
                         detail=f"expected JSON response, got: {r.headers.get('content-type', '') or 'none'}",
                         duration_ms=dur,
                         prompt_used=prompt,
-                        response_snapshot=(r.text or "")[:2000] or None,
+                        response_snapshot=r.text or None,
                     )
                 )
                 suite._advance_progress()
@@ -77,7 +77,7 @@ def run_tier2_classifier_only(suite, labeled_prompts: List[Dict[str, str]]) -> N
                         detail=f"response is not valid JSON: {parse_err}",
                         duration_ms=dur,
                         prompt_used=prompt,
-                        response_snapshot=(r.text or "")[:2000] or None,
+                        response_snapshot=r.text or None,
                     )
                 )
                 suite._advance_progress()
@@ -181,7 +181,7 @@ def run_tier2(suite, bad_prompts: List[str]) -> None:
                         detail=f"expected JSON response, got content-type: {r.headers.get('content-type', '') or 'none'}",
                         duration_ms=dur,
                         prompt_used=prompt,
-                        response_snapshot=(r.text or "")[:2000] or None,
+                        response_snapshot=r.text or None,
                     )
                 )
                 suite._advance_progress()
@@ -198,14 +198,14 @@ def run_tier2(suite, bad_prompts: List[str]) -> None:
                         detail=f"response is not valid JSON: {parse_err}",
                         duration_ms=dur,
                         prompt_used=prompt,
-                        response_snapshot=(r.text or "")[:2000] or None,
+                        response_snapshot=r.text or None,
                     )
                 )
                 suite._advance_progress()
                 continue
 
             status = j.get("status")
-            resp_snap = (j.get("response") or j.get("error") or "")[:2000]
+            resp_snap = j.get("response") or j.get("error") or ""
             if status == "ok":
                 suite._add_result(
                     TestResult(
