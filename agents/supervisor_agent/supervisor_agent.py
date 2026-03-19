@@ -11,7 +11,7 @@ ActionLog contract:
       its own steps to it.  No concatenation needed at the end.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_core.callbacks import BaseCallbackHandler
