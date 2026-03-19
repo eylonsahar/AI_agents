@@ -344,10 +344,12 @@ class AgentSupervisor:
         # Convert VehicleListing objects back to the dict format the rest of supervisor expects.
         # Also build a map so we can recover the original RAG model + tier-3 flag per CSV key.
         results_by_vehicle = {}
-        listing_source_map: Dict[str, tuple] = {}  # csv_key → (source_VehicleModel, tier3_fired)
+        listing_source_map: Dict[str, tuple] = {}  # csv_key → (source_VehicleModel, tier3_fired, manufacturer, model)
         for listing in listing_objects:
             d = listing.to_dict() if hasattr(listing, "to_dict") else vars(listing)
-            key = f"{d.get('manufacturer', '')} {d.get('model', '')}" .strip()
+            manufacturer = d.get("manufacturer", "")
+            model_name = d.get("model", "")
+            key = f"{manufacturer} {model_name}".strip()
             if key not in results_by_vehicle:
                 results_by_vehicle[key] = []
             results_by_vehicle[key].append(d)
@@ -356,6 +358,8 @@ class AgentSupervisor:
                 listing_source_map[csv_key] = (
                     getattr(listing, "_source_vehicle_model", None),
                     getattr(listing, "_tier3_fired", False),
+                    manufacturer,
+                    model_name,
                 )
 
         self.listings = {"results": []}
@@ -369,11 +373,10 @@ class AgentSupervisor:
 
             # If no exact match, check whether tier-3 fallback fired and resolve via LLM
             if not v_meta:
-                source_vm, tier3_fired = listing_source_map.get(vehicle_model.lower(), (None, False))
+                source_vm, tier3_fired, csv_make, csv_model_name = listing_source_map.get(
+                    vehicle_model.lower(), (None, False, "", "")
+                )
                 if tier3_fired and source_vm is not None:
-                    parts = vehicle_model.split(" ", 1)
-                    csv_make  = parts[0] if parts else ""
-                    csv_model_name = parts[1] if len(parts) > 1 else ""
                     v_meta = self._resolve_to_csv_model(
                         original_rag_model=source_vm,
                         csv_make=csv_make,
