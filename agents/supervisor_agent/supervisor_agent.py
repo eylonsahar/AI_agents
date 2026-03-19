@@ -11,7 +11,7 @@ ActionLog contract:
       its own steps to it.  No concatenation needed at the end.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_core.callbacks import BaseCallbackHandler
@@ -396,13 +396,15 @@ class AgentSupervisor:
         self.action_log.add_step(
             module="SearchPipeline",
             submodule="ListingsRetriever",
+            is_llm_call=False,
             prompt=", ".join(
                 f"{v.get('make', '')} {v.get('model', '')}" for v in self.vehicle_models
             ),
             response=f"Total: {total} listings | {per_model}",
         )
 
-        # Run DecisionAgent to score and rank listings and log the results
+        # Run DecisionAgent to score and rank listings, log, then trim to target_listings.
+        # This ensures FieldAgent only enriches the best candidates rather than every listing.
         try:
             from agents.search_agent.decision_agent import DecisionAgent
             decision_agent = DecisionAgent()
@@ -423,9 +425,25 @@ class AgentSupervisor:
                 self.action_log.add_step(
                     module="SearchPipeline",
                     submodule="DecisionAgent",
+                    is_llm_call=False,
                     prompt=f"Score and rank {len(listing_objects)} listings",
                     response="\n".join(ranking_lines),
                 )
+
+                # Trim to target_listings * 2 so FieldAgent enriches a buffer of
+                # candidates; the final trim to target_listings happens after
+                # enrichment in _action_process_listings.
+                top_ids = {sl.listing.id for sl in scored[:self.target_listings * 2]}
+                trimmed_results = []
+                for result in self.listings["results"]:
+                    kept = [
+                        ld for ld in result["listings"]
+                        if str(ld.get("id", "")) in top_ids
+                    ]
+                    if kept:
+                        trimmed_results.append({"vehicle": result["vehicle"], "listings": kept})
+                self.listings["results"] = trimmed_results
+
         except Exception:
             pass  # DecisionAgent is optional — don't break the pipeline
 
@@ -434,7 +452,13 @@ class AgentSupervisor:
 
 
     def _action_process_listings(self) -> str:
-        """Delegate to FieldAgent for listing completion and scheduling."""
+        """
+        Delegate to FieldAgent for enrichment + scheduling, then re-rank with
+        fully enriched data and trim the output to target_listings.
+
+        FieldAgent receives up to target_listings*2 candidates so the final
+        re-rank has real mileage/accident data to work with before trimming.
+        """
         if not self.listings:
             return "Error: Cannot process without listings"
 
@@ -442,19 +466,18 @@ class AgentSupervisor:
 
         field_agent = FieldAgent(
             ads_list=self.listings,
-            action_log=self.action_log,  # shared log
+            action_log=self.action_log,
         )
         self.processed_results = field_agent.process_listings()
 
         stats = self.processed_results.get("stats", {})
 
-        # ── Final DecisionAgent re-ranking with enriched data ────────────────
+        # ── Re-rank with fully enriched data, then trim to target_listings ────
         try:
             from agents.search_agent.decision_agent import DecisionAgent
-            from agents.utils.contracts import VehicleListing, VehicleModel, VehicleModelsResult
+            from agents.utils.contracts import VehicleListing, VehicleModelsResult
 
-            # Collect all enriched listings as VehicleListing objects
-            enriched_listings: list = []
+            enriched_listings: List[VehicleListing] = []
             for group in self.processed_results.get("results", []):
                 for listing_dict in group.get("listings", []):
                     enriched_listings.append(VehicleListing.from_dict(listing_dict))
@@ -473,7 +496,6 @@ class AgentSupervisor:
                 )
 
                 if scored:
-                    # Log final ranking to execution trace
                     ranking_lines = []
                     for i, sl in enumerate(scored, 1):
                         reasons = ", ".join(sl.reasons) if sl.reasons else "no specific reasons"
@@ -486,21 +508,28 @@ class AgentSupervisor:
                     self.action_log.add_step(
                         module="SearchPipeline",
                         submodule="DecisionAgent",
-                        prompt=f"Re-rank {len(enriched_listings)} fully enriched listings",
+                        is_llm_call=False,
+                        prompt=f"Re-rank {len(enriched_listings)} enriched listings",
                         response="\n".join(ranking_lines),
                     )
 
-                    # Re-sort the results groups so best listings appear first
-                    score_map: dict = {}
-                    for sl in scored:
-                        key = str(getattr(sl.listing, "id", ""))
-                        score_map[key] = sl.final_score
+                    # Trim to top target_listings and re-sort within each model group
+                    top_ids = {sl.listing.id for sl in scored[:self.target_listings]}
+                    score_map = {sl.listing.id: sl.final_score for sl in scored}
 
+                    trimmed_results = []
                     for group in self.processed_results.get("results", []):
-                        group["listings"].sort(
-                            key=lambda d: score_map.get(str(d.get("id", "")), 0.0),
-                            reverse=True,
-                        )
+                        kept = [
+                            ld for ld in group["listings"]
+                            if str(ld.get("id", "")) in top_ids
+                        ]
+                        if kept:
+                            kept.sort(
+                                key=lambda d: score_map.get(str(d.get("id", "")), 0.0),
+                                reverse=True,
+                            )
+                            trimmed_results.append({"vehicle": group["vehicle"], "listings": kept})
+                    self.processed_results["results"] = trimmed_results
 
                     print(f"\n🏆 Final ranking complete — top listing: "
                           f"{scored[0].listing.manufacturer} {scored[0].listing.model} "
@@ -634,7 +663,9 @@ class AgentSupervisor:
         print("=" * 60)
         print(f"Target: {self.target_listings} complete listings")
         print(f"Actions taken: {', '.join(self.actions_taken)}")
-        print(f"Total LLM calls logged: {len(self.action_log.get_steps())}")
+        steps = self.action_log.get_steps()
+        print(f"Total steps logged:     {len(steps)}")
+        print(f"Real LLM calls:         {self.action_log.count_llm_calls()}")
 
         if self.processed_results:
             stats = self.processed_results.get("stats", {})
