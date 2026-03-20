@@ -24,7 +24,7 @@ class ListingsRetriever:
     The CSV path is hardcoded in the configuration (LISTINGS_CSV_PATH).
     """
     
-    def __init__(self, csv_path: Optional[str] = None, llm_gateway=None):
+    def __init__(self, csv_path: Optional[str] = None, llm_gateway=None, action_log=None):
         """
         Initialize the ListingsRetriever.
         
@@ -33,9 +33,12 @@ class ListingsRetriever:
             llm_gateway: Optional LLMGateway instance. When provided, tier-3 fallback uses LLM
                          translation to find semantically equivalent US-market models instead of
                          a raw manufacturer-only search.
+            action_log: Optional ActionLog instance shared with the Supervisor. When provided,
+                        LLM calls made by this class are appended to the shared log.
         """
         self.csv_path = csv_path or LISTINGS_CSV_PATH
         self.llm_gateway = llm_gateway
+        self.action_log = action_log
         self.df: Optional[pd.DataFrame] = None
         self._load_data()
     
@@ -298,6 +301,7 @@ class ListingsRetriever:
             body_type=vehicle_model.body_type or "unknown",
             user_query=user_query or "not specified",
         )
+        response_text = "error"
         try:
             response_text, _ = self.llm_gateway.call_llm(prompt=prompt)
             results = []
@@ -314,10 +318,19 @@ class ListingsRetriever:
                 f"'{vehicle_model.make} {vehicle_model.model}': "
                 + ", ".join(f"{m} {mdl}" for m, mdl in results)
             )
-            return results
         except Exception as exc:
             print(f"[ListingsRetriever] US model translation failed: {exc}")
-            return []
+            results = []
+
+        if self.action_log is not None:
+            self.action_log.add_step(
+                module="SearchPipeline",
+                submodule="USModelTranslation",
+                is_llm_call=True,
+                prompt=prompt,
+                response=response_text,
+            )
+        return results
 
     def _query(
         self,

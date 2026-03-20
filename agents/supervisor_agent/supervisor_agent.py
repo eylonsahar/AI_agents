@@ -132,7 +132,8 @@ class AgentSupervisor:
             llm_gateway: LLMGateway,
             vehicle_retriever: Optional["VehicleModelRetriever"] = None,
             target_listings: int = NUM_TARGET_LISTINGS,
-            max_iterations: int = MAX_DECISION_ITERATIONS
+            max_iterations: int = MAX_DECISION_ITERATIONS,
+            action_log: Optional[ActionLog] = None,
     ):
         self.llm_gateway = llm_gateway
         self.user_comm = UserCommunication()
@@ -140,8 +141,9 @@ class AgentSupervisor:
         self.target_listings = target_listings
         self.max_iterations = max_iterations
 
-        # Shared action log — passed down to FieldAgent
-        self.action_log = ActionLog()
+        # Use the pre-populated log (e.g. already contains the IntentClassifier step)
+        # or create a fresh one if none was supplied.
+        self.action_log = action_log if action_log is not None else ActionLog()
 
         # State tracking
         self.user_requirements = None
@@ -319,7 +321,7 @@ class AgentSupervisor:
         )
 
 
-        retriever = ListingsRetriever(llm_gateway=self.llm_gateway)
+        retriever = ListingsRetriever(llm_gateway=self.llm_gateway, action_log=self.action_log)
 
         # Parse user constraints for the fallback tiers in retrieve_listings
         reqs = self.user_requirements or {}
@@ -395,7 +397,7 @@ class AgentSupervisor:
         )
         self.action_log.add_step(
             module="SearchPipeline",
-            submodule="ListingsRetriever",
+            submodule="ListingsRetriever - Deterministic",
             is_llm_call=False,
             prompt=", ".join(
                 f"{v.get('make', '')} {v.get('model', '')}" for v in self.vehicle_models
@@ -424,7 +426,7 @@ class AgentSupervisor:
                     )
                 self.action_log.add_step(
                     module="SearchPipeline",
-                    submodule="DecisionAgent",
+                    submodule="ListingPrioritization - Deterministic",
                     is_llm_call=False,
                     prompt=f"Score and rank {len(listing_objects)} listings",
                     response="\n".join(ranking_lines),
@@ -507,7 +509,7 @@ class AgentSupervisor:
                         )
                     self.action_log.add_step(
                         module="SearchPipeline",
-                        submodule="DecisionAgent",
+                        submodule="ListingPrioritization - Deterministic",
                         is_llm_call=False,
                         prompt=f"Re-rank {len(enriched_listings)} enriched listings",
                         response="\n".join(ranking_lines),

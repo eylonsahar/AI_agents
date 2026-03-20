@@ -277,6 +277,13 @@ class FieldAgent:
         except (ValueError, TypeError):
             price_val = 0.0
         if price_val < MIN_VALID_PRICE:
+            self.action_log.add_step(
+                module="FieldAgent",
+                submodule="PriceValidation - Deterministic",
+                is_llm_call=False,
+                prompt=f"Hard floor check: {year} {make} {model} | price=${price_val:.0f} < MIN_VALID_PRICE=${MIN_VALID_PRICE:.0f}",
+                response="UNREALISTIC — price below minimum valid threshold",
+            )
             self._price_unrealistic_cache[listing_id] = True
             return True
 
@@ -295,10 +302,10 @@ class FieldAgent:
 
             self.action_log.add_step(
                 module="FieldAgent",
-                submodule="PriceValidation - Deterministic Path",
+                submodule="PriceValidation - Deterministic",
                 is_llm_call=False,
                 prompt=(
-                    f"List-price check: {year} {make} {model} | "
+                    f"List-price ratio check: {year} {make} {model} | "
                     f"price=${price_val:.0f}, list_price=${list_price_val:.0f}, "
                     f"condition='{condition or 'unknown'}' | "
                     f"ratio={ratio:.2f}, bounds=[{lower_bound:.2f}, {LIST_PRICE_UPPER_BOUND:.2f}]"
@@ -335,7 +342,7 @@ class FieldAgent:
 
         self.action_log.add_step(
             module="FieldAgent",
-            submodule="PriceValidation - LLM Call",
+            submodule="PriceValidation",
             prompt=prompt,
             response=f"{'UNREALISTIC' if is_unrealistic else 'PLAUSIBLE'} — raw answer: {raw_answer}",
         )
@@ -369,7 +376,7 @@ class FieldAgent:
         self.action_log.add_step(
             module="FieldAgent",
             submodule="Seller/GetData",
-            is_llm_call=False,
+            is_llm_call=True,
             prompt=f"Requested fields for listing {listing_id}: {', '.join(fields_to_request)}",
             response=raw_response,
         )
@@ -471,7 +478,7 @@ class FieldAgent:
         self.action_log.add_step(
             module="FieldAgent",
             submodule="Seller/Scheduling",
-            is_llm_call=False,
+            is_llm_call=True,
             prompt=f"Requested {NUM_AVAILABLE_DATES} available slots from {tomorrow.strftime('%Y-%m-%d')} to {two_weeks_later.strftime('%Y-%m-%d')}",
             response="\n".join(available_slots),
         )
