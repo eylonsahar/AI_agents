@@ -17,19 +17,19 @@
     }
 
     :root {
-      --bg: #0d0f17;
-      --surface: #161923;
-      --surface2: #1e2233;
-      --border: #2a3050;
-      --accent: #6c63ff;
-      --accent2: #00d4ff;
-      --user-bg: #1b2a4a;
-      --agent-bg: #1a1e2e;
-      --text: #e4e8f7;
-      --muted: #8892b0;
-      --success: #50fa7b;
-      --error: #ff5555;
-      --warn: #ffb86c;
+      --bg: #eee8de;
+      --surface: #e4dfd7;
+      --surface2: #c8d9cc;
+      --border: #c4bdb4;
+      --accent: #5a8a6e;
+      --accent2: #c9755e;
+      --user-bg: #dbd6ce;
+      --agent-bg: #d5d0c8;
+      --text: #2a2a2a;
+      --muted: #6b6560;
+      --success: #3d8f5f;
+      --error: #c0392b;
+      --warn: #c97d3a;
       --radius: 14px;
       --glow: 0 0 24px rgba(108, 99, 255, .35);
     }
@@ -48,8 +48,6 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      max-width: 960px;
-      margin: 0 auto;
     }
 
     /* ── Header ─────────────────────────────────────────────────── */
@@ -59,29 +57,29 @@
       gap: 14px;
       padding: 18px 24px;
       border-bottom: 1px solid var(--border);
-      background: linear-gradient(90deg, #0d0f17 0%, #161338 100%);
+      background: var(--surface);
     }
 
     .logo {
-      width: 44px;
-      height: 44px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 12px;
+      width: 54px;
+      height: 54px;
+      background: var(--accent);
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
+      font-size: 28px;
       box-shadow: var(--glow);
     }
 
     .brand h1 {
-      font-size: 20px;
+      font-size: 26px;
       font-weight: 700;
       letter-spacing: -.3px;
     }
 
     .brand p {
-      font-size: 12px;
+      font-size: 14px;
       color: var(--muted);
     }
 
@@ -97,13 +95,13 @@
 
     /* ── Architecture button ─────────────────────────────────────── */
     #arch-btn {
-      margin-left: auto;
-      padding: 7px 14px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      margin-left: 0;
+      padding: 10px 20px;
+      background: var(--accent);
       border: none;
       border-radius: 8px;
       color: #fff;
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       transition: opacity .2s, transform .15s;
@@ -111,6 +109,27 @@
     }
 
     #arch-btn:hover {
+      opacity: .85;
+      transform: translateY(-1px);
+    }
+
+    /* ── GitHub button ───────────────────────────────────────────── */
+    #github-btn {
+      margin-left: auto;
+      padding: 10px 20px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity .2s, transform .15s;
+      white-space: nowrap;
+    }
+
+    #github-btn:hover {
       opacity: .85;
       transform: translateY(-1px);
     }
@@ -193,6 +212,7 @@
       padding: 28px 20px;
       display: flex;
       flex-direction: column;
+      justify-content: flex-start;
       gap: 18px;
       scroll-behavior: smooth;
     }
@@ -252,11 +272,11 @@
     }
 
     .bubble-wrap.user .avatar {
-      background: linear-gradient(135deg, #2a4480, #1b3a6b);
+      background: var(--user-bg);
     }
 
     .bubble-wrap.agent .avatar {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      background: var(--accent);
     }
 
     .bubble {
@@ -270,9 +290,9 @@
 
     .bubble-wrap.user .bubble {
       background: var(--user-bg);
-      border: 1px solid #2a3c6a;
+      border: 1px solid var(--border);
       border-bottom-right-radius: 4px;
-      color: #cdd8f7;
+      color: var(--text);
     }
 
     .bubble-wrap.agent .bubble {
@@ -283,12 +303,12 @@
 
     .bubble.error-bubble {
       border-color: var(--error);
-      background: #1a0e16;
+      background: #fde8e8;
     }
 
     .bubble.warn-bubble {
       border-color: var(--warn);
-      background: #1a1600;
+      background: #fdf3e3;
     }
 
     /* ── Processing spinner ────────────────────────────────────── */
@@ -343,7 +363,7 @@
     }
 
     .steps-header:hover {
-      background: #252a40;
+      background: var(--border);
     }
 
     .steps-toggle {
@@ -377,7 +397,7 @@
       top: 0;
       bottom: 0;
       width: 2px;
-      background: linear-gradient(to bottom, var(--accent), var(--accent2));
+      background: var(--accent);
       opacity: .35;
       border-radius: 2px;
     }
@@ -406,7 +426,7 @@
       font-weight: 700;
       color: #fff;
       flex-shrink: 0;
-      box-shadow: 0 0 6px rgba(0, 0, 0, .4);
+      box-shadow: 0 0 6px rgba(0, 0, 0, .15);
     }
 
     .tl-dot.thought {
@@ -448,7 +468,7 @@
     }
 
     .tl-header:hover {
-      background: #252a40;
+      background: var(--border);
       border-color: var(--accent);
     }
 
@@ -522,15 +542,14 @@
     }
 
     .blog-text {
-      color: #c8d4f0;
+      color: var(--text);
       white-space: pre-wrap;
       word-break: break-word;
     }
 
     .blog-text.thought-text {
       font-style: italic;
-      color: #c4b5fd;
-      /* soft purple for thoughts */
+      color: var(--muted);
     }
 
     .blog-text.empty {
@@ -587,6 +606,14 @@
       padding: 16px 20px;
       border-top: 1px solid var(--border);
       background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .input-area > * {
+      width: 100%;
+      max-width: 640px;
     }
 
     /* Fields row */
@@ -664,7 +691,7 @@
 
     #run-btn {
       padding: 14px 22px;
-      background: linear-gradient(135deg, var(--accent), #9b59ff);
+      background: var(--accent);
       color: #fff;
       border: none;
       border-radius: 12px;
@@ -710,12 +737,14 @@
 
     /* ── Welcome card ────────────────────────────────────────────── */
     .welcome {
-      background: linear-gradient(135deg, var(--surface2) 0%, #1a1f3a 100%);
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 24px 26px;
       max-width: 520px;
       align-self: center;
+      text-align: center;
+      margin: auto;
     }
 
     .welcome h2 {
@@ -730,8 +759,20 @@
       line-height: 1.7;
     }
 
+    .agent-note {
+      margin-top: 12px;
+      font-size: 12.5px !important;
+      color: var(--accent) !important;
+      background: rgba(90, 138, 110, 0.08);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 8px 12px;
+      line-height: 1.6 !important;
+    }
+
     .welcome ul {
-      margin: 12px 0 0 18px;
+      margin: 12px 0 0 0;
+      list-style: none;
       color: var(--muted);
       font-size: 13px;
       line-height: 2;
@@ -743,8 +784,8 @@
 
     /* ── Result card ─────────────────────────────────────────────── */
     .result-card {
-      background: linear-gradient(135deg, var(--surface2) 0%, #1c2038 100%);
-      border: 1px solid #3a4060;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 18px 20px;
       margin-bottom: 10px;
@@ -776,18 +817,20 @@
     /* ── Misc ────────────────────────────────────────────────────── */
     .suggested-prompts {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
+      justify-content: center;
+      text-align: center;
       margin-top: 14px;
     }
 
     .chip {
       padding: 6px 13px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
+      background: var(--accent);
+      border: 1px solid var(--accent);
       border-radius: 20px;
       font-size: 12.5px;
-      color: var(--muted);
+      color: #fff;
       cursor: pointer;
       transition: border-color .2s, color .2s, background .2s;
     }
@@ -809,8 +852,9 @@
         <h1>AItzik</h1>
         <p>AI-Powered Car Agent</p>
       </div>
-      <button id="arch-btn" onclick="openArchModal()" title="View system architecture">🏗️ Architecture</button>
       <div class="status-dot" title="API online"></div>
+      <a id="github-btn" href="https://github.com/eylonsahar/AI_agents" target="_blank" title="View on GitHub">🐙 GitHub Repo</a>
+      <button id="arch-btn" onclick="openArchModal()" title="View system architecture">🏗️ Architecture</button>
     </header>
 
     <!-- Architecture Modal -->
@@ -828,19 +872,17 @@
         <h2>👋 Welcome to AItzik!</h2>
         <p>I'll find your perfect used car, fill in all listing details by contacting sellers, and even schedule
           viewings for you.</p>
+        <p class="agent-note">⚡ Powered by an autonomous AI agent that independently browses listings, contacts sellers, and makes decisions — no human in the loop.</p>
         <ul>
           <li><span>Describe the car you want</span></li>
           <li><span>Set your max budget & minimum year</span></li>
-          <li><span>I handle everything else automatically</span></li>
+          <li><span>I will handle everything else automatically</span></li>
         </ul>
         <div class="suggested-prompts">
-          <div class="chip" onclick="fillExample('Reliable family SUV, prefer silver or white', '22000', '2018')">Family
+          <div class="chip" onclick="fillExample('Reliable family SUV with minimal milage', '22000', '2018')">Family
             SUV under $22k</div>
-          <div class="chip" onclick="fillExample('Fuel-efficient sedan for daily commute', '15000', '2016')">Eco sedan
-            under $15k</div>
-          <div class="chip"
-            onclick="fillExample('Pickup truck for occasional towing and outdoor use', '30000', '2017')">Pickup truck
-            under $30k</div>
+          <div class="chip" onclick="fillExample('Eco fuel efficient little car', '10000', '2016')">Eco little car under $10k</div>
+          <div class="chip" onclick="fillExample('Cool sports car', '75000', '2010')">Sports car under $75k</div>
         </div>
       </div>
     </div>
