@@ -19,7 +19,7 @@ User Request
     │                  │               │
     ▼                  ▼               ▼
 ┌───────────────┐  ┌──────────────────────────┐  ┌──────────────────────────┐
-│Search Pipeline│  │   Decision-Making Agent  │  │       Field Agent        │
+│Search Pipeline│  │   Listing Prioritization │  │       Field Agent        │
 │               │  │                          │  │  (LangChain ReAct ·      │
 │ 1. RAG /      │  │  • Scores & ranks        │  │   per-listing enrichment)│
 │    Pinecone   │  │    candidate listings    │  │                          │
@@ -45,6 +45,7 @@ AI_agents/
 │   │   └── supervisor_agent.py  # Orchestrator (LangChain ReAct)
 │   ├── field_agent/
 │   │   ├── field_agent.py       # Per-listing enrichment agent
+│   │   ├── mock_seller.py       # Mock seller for simulation/testing
 │   │   └── tools.py             # Seller mock + scheduling tools
 │   ├── search_agent/
 │   │   ├── vehicle_model_retriever.py  # RAG + Pinecone search
