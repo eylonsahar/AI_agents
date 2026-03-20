@@ -54,6 +54,7 @@ load_dotenv(os.path.join(ROOT, ".env"))
 from agents.supervisor_agent.supervisor_agent import AgentSupervisor
 from agents.search_agent.vehicle_model_retriever import VehicleModelRetriever
 from agents.search_agent.rag_retrieval import get_pinecone_index
+from agents.action_log import ActionLog
 from gateways.llm_gateway import LLMGateway
 from gateways.embedding_gateway import EmbeddingGateway
 
@@ -174,31 +175,42 @@ class ExecuteResponse(BaseModel):
 ARCHITECTURE_PNG = os.path.join(ROOT, "model_architecture.png")
 
 
-def _check_is_car_search(prompt: str, description: str, llm_gateway) -> bool:
+def _check_is_car_search(prompt: str, description: str, llm_gateway, action_log=None) -> bool:
     """
     Ask the LLM whether the user's request is a car/vehicle search.
     Returns True if it is, False otherwise.
+    If action_log is provided, the LLM call is recorded as a step.
     """
     text = f"{prompt} {description}".strip()
+    classifier_prompt = (
+        "You are a request classifier. "
+        "Answer ONLY with the single word 'yes' or 'no'.\n"
+        "'yes' = the request is about finding or buying a car or passenger vehicle "
+        "(including electric vehicles, SUVs, family cars, and consumer pickup trucks used as personal vehicles).\n"
+        "'no' = everything else: motorcycles, heavy-duty/commercial trucks, cargo vans, selling a car, rentals, or unrelated topics.\n\n"
+        "examples:\n"
+        "yes: I'm looking for a reliable family SUV, prefer silver or white\n"
+        "yes: Crew-cab pickup for towing and hauling, up to $30,000, min year 2017+.\n"
+        "no: Rent a midsize SUV 2018 or newer for one week, budget $60/day, pickup 2025-06-01\n"
+        "no:  Create a listing to sell my 2016 Honda Civic for $12,500 USD, include photos and service history\n"
+        f"Request: '{text}'"
+    )
+    response_text = "error"
     try:
-        response_text, _ = llm_gateway.call_llm(
-            prompt=(
-                "You are a request classifier. "
-                "Answer ONLY with the single word 'yes' or 'no'.\n"
-                "'yes' = the request is about finding or buying a car or passenger vehicle "
-                "(including electric vehicles, SUVs, family cars, and consumer pickup trucks used as personal vehicles).\n"
-                "'no' = everything else: motorcycles, heavy-duty/commercial trucks, cargo vans, selling a car, rentals, or unrelated topics.\n\n"
-                "examples:\n"
-                "yes: I'm looking for a reliable family SUV, prefer silver or white\n"
-                "yes: Crew-cab pickup for towing and hauling, up to $30,000, min year 2017+.\n"
-                "no: Rent a midsize SUV 2018 or newer for one week, budget $60/day, pickup 2025-06-01\n"
-                "no:  Create a listing to sell my 2016 Honda Civic for $12,500 USD, include photos and service history\n"
-                f"Request: '{text}'"
-            )
-        )
-        return "yes" in response_text.strip().lower()[:10]
+        response_text, _ = llm_gateway.call_llm(prompt=classifier_prompt)
+        result = "yes" in response_text.strip().lower()[:10]
     except Exception:
-        return True   # fail open: let the agent try
+        result = True   # fail open: let the agent try
+
+    if action_log is not None:
+        action_log.add_step(
+            module="Supervisor",
+            submodule="IntentClassifier",
+            is_llm_call=True,
+            prompt=classifier_prompt,
+            response=f"{'CAR_SEARCH' if result else 'NOT_CAR_SEARCH'} — raw: {response_text[:80]}",
+        )
+    return result
 
 
 def _format_results_as_text(results: List[Dict]) -> str:
@@ -354,13 +366,14 @@ def agent_info():
                     "Click the links above to add viewings to your calendar!"
                 ),
                 "steps": [
+                    {"module": "Supervisor / IntentClassifier", "prompt": "Request: 'Reliable family SUV, prefer silver or white'", "response": "CAR_SEARCH — raw: yes"},
                     {"module": "Supervisor / Thought", "prompt": "", "response": "I'll search the database for vehicle models that match the user's requirements (max $22,000, min year 2018, reliable family SUVs, prefer silver or white)."},
                     {"module": "SearchPipeline / VehicleModelRetriever", "prompt": "max price: 22000 min year: 2018 Reliable family SUV, prefer silver or white", "response": "Hyundai Santa Fe (4X4, 2018-2024) | match: 0.95 | Meets the user's year requirement (2018+), is explicitly described as a large, practical seven-seat family SUV and is noted as good value for money.\nMitsubishi Outlander (4X4, 2013-2021) | match: 0.86 | Good-value, well-equipped large SUV with family appeal, five-star Euro NCAP rating, PHEV variant offers very low running costs."},
                     {"module": "Supervisor / Thought", "prompt": "", "response": "I'll retrieve for-sale listings for the found models (Hyundai Santa Fe and Mitsubishi Outlander) that match the user's constraints."},
-                    {"module": "SearchPipeline / ListingsRetriever", "prompt": "Hyundai Santa Fe, Mitsubishi Outlander", "response": "Total: 6 listings | Hyundai Santa Fe: 3 listings, Mitsubishi Outlander: 3 listings"},
-                    {"module": "SearchPipeline / DecisionAgent", "prompt": "Score and rank 6 listings", "response": "#1: hyundai santa fe (2019.0, $19900) | score: 0.85\n#2: hyundai santa fe (2018.0, $14500) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71\n#4: mitsubishi outlander (2014.0, $3999) | score: 0.71"},
+                    {"module": "SearchPipeline / ListingsRetriever - Deterministic", "prompt": "Hyundai Santa Fe, Mitsubishi Outlander", "response": "Total: 6 listings | Hyundai Santa Fe: 3 listings, Mitsubishi Outlander: 3 listings"},
+                    {"module": "SearchPipeline / ListingPrioritization - Deterministic", "prompt": "Score and rank 6 listings", "response": "#1: hyundai santa fe (2019.0, $19900) | score: 0.85\n#2: hyundai santa fe (2018.0, $14500) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71\n#4: mitsubishi outlander (2014.0, $3999) | score: 0.71"},
                     {"module": "Supervisor / Thought", "prompt": "", "response": "I'll delegate completing the 6 retrieved listings and scheduling meetings with sellers."},
-                    {"module": "FieldAgent / PriceValidation", "prompt": "List-price check: 2018 hyundai santa fe | price=$14500, list_price=$22000, condition='excellent' | ratio=0.66, bounds=[0.40, 1.20]", "response": "PLAUSIBLE — ratio 0.66"},
+                    {"module": "FieldAgent / PriceValidation - Deterministic", "prompt": "List-price ratio check: 2018 hyundai santa fe | price=$14500, list_price=$22000, condition='excellent' | ratio=0.66, bounds=[0.40, 1.20]", "response": "PLAUSIBLE — ratio 0.66"},
                     {"module": "FieldAgent / Thought", "prompt": "", "response": "This listing is missing accident and mileage; request both fields from the seller for listing 7316590169 before scheduling a meeting."},
                     {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7316590169: accident, mileage", "response": "mileage = 84250\naccident = 2021-08-14\npaint_color = silver\nstate = CA\nid = 7316590169"},
                     {"module": "FieldAgent / Thought", "prompt": "", "response": "All required fields for listing 7316590169 were just filled; schedule a meeting now."},
@@ -378,7 +391,7 @@ def agent_info():
                     {"module": "FieldAgent / Seller/GetData", "prompt": "Requested fields for listing 7316872707: accident, mileage", "response": "mileage = 84250\naccident = 2021-08-15\npaint_color = silver\nstate = CA\nid = 7316872707"},
                     {"module": "FieldAgent / Seller/Scheduling", "prompt": "Requested 2 available slots from 2026-03-04 to 2026-03-18", "response": "2026-03-08 11:00\n2026-03-11 18:30"},
                     {"module": "FieldAgent / FinalAnswer", "prompt": "", "response": "Completed processing for 6 listings. Missing fields filled and meetings scheduled (2 slots each) for listings: 7316590169, 7315970890, 7315719756, 7317007116, 7316941545, 7316872707."},
-                    {"module": "SearchPipeline / DecisionAgent", "prompt": "Re-rank 6 fully enriched listings", "response": "#1: hyundai santa fe (2018.0, $14500) | score: 0.79\n#2: hyundai santa fe (2019.0, $19900) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71\n#4: mitsubishi outlander (2014.0, $8995) | score: 0.69\n#5: mitsubishi outlander (2014.0, $3999) | score: 0.63\n#6: hyundai santa fe (2018.0, $27675) | score: 0.51"},
+                    {"module": "SearchPipeline / ListingPrioritization - Deterministic", "prompt": "Re-rank 6 enriched listings", "response": "#1: hyundai santa fe (2018.0, $14500) | score: 0.79\n#2: hyundai santa fe (2019.0, $19900) | score: 0.78\n#3: mitsubishi outlander (2019.0, $18997) | score: 0.71"},
                     {"module": "Supervisor / FinalAnswer", "prompt": "", "response": "Mission complete."}
                 ]
             }
@@ -459,12 +472,14 @@ def execute(body: ExecuteRequest, stream: bool = False):
 
         # ── Intent check (fast LLM call) ──────────────────────────────────
         llm_gateway = LLMGateway.get_instance(api_key=api_key)
-        if not _check_is_car_search(prompt_text, description, llm_gateway):
+        action_log = ActionLog()
+        if not _check_is_car_search(prompt_text, description, llm_gateway, action_log=action_log):
             yield _json.dumps({"status": "error",
                                 "error": ("Your request doesn't seem to be about finding a car. "
                                           "Please describe the vehicle you're looking for, e.g. "
                                           "'reliable family SUV under $20,000 from 2018 or newer'."),
-                                "response": None, "steps": []}) + "\n"
+                                "response": None,
+                                "steps": _normalize_steps(action_log.get_steps())}) + "\n"
             return
 
         # ── Emit acknowledgement immediately ──────────────────────────────
@@ -489,6 +504,7 @@ def execute(body: ExecuteRequest, stream: bool = False):
                 sup = AgentSupervisor(
                     llm_gateway=llm_gateway,
                     vehicle_retriever=_vehicle_retriever,
+                    action_log=action_log,
                 )
                 result_holder["result"] = sup.run_headless(requirements=requirements)
             except Exception as exc:
@@ -583,16 +599,18 @@ def _run_blocking(body, _extract_price, _extract_year,
 
     # ── Intent validation ─────────────────────────────────────────────────
     llm_gateway = LLMGateway.get_instance(api_key=api_key)
-    if not _check_is_car_search(prompt_text, description, llm_gateway):
+    action_log = ActionLog()
+    if not _check_is_car_search(prompt_text, description, llm_gateway, action_log=action_log):
         return {"status": "error",
                 "error": ("Invalid request: the prompt does not appear to be a car search. "
                           "Please describe the vehicle you are looking for, e.g. "
                           "'reliable family SUV under $20,000 from 2018 or newer'."),
-                "response": None, "steps": []}
+                "response": None, "steps": _normalize_steps(action_log.get_steps())}
 
     # ── Run the agent ─────────────────────────────────────────────────────
     try:
-        sup    = AgentSupervisor(llm_gateway=llm_gateway, vehicle_retriever=_vehicle_retriever)
+        sup    = AgentSupervisor(llm_gateway=llm_gateway, vehicle_retriever=_vehicle_retriever,
+                                 action_log=action_log)
         result = sup.run_headless(requirements={"max_price": max_price,
                                                 "year_min":  year_min,
                                                 "description": description})
